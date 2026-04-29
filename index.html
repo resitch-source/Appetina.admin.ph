@@ -386,7 +386,7 @@ function renderTable(rows) {
     const total= +b['Total (₱)'] || 0;
     const down = +b['Downpayment (₱)'] || 0;
     const bal  = +b['Balance (₱)'] || 0;
-    const receipt = b['Receipt Link'];
+    const receipt = getReceiptUrl(b);
     const receiptHtml = receipt
       ? `<img class="receipt-thumb" src="${receipt}" alt="receipt"
            onclick="event.stopPropagation();openLightbox('${receipt}')"
@@ -428,7 +428,7 @@ function openModal(idx) {
   const down = +b['Downpayment (₱)'] || 0;
   const bal  = +b['Balance (₱)'] || 0;
 
-  const receiptUrl = b['Receipt Link'] || '';
+  const receiptUrl = getReceiptUrl(b);
   const receiptSection = receiptUrl
     ? `<div class="receipt-preview">
         <div class="receipt-img-wrap" onclick="openLightbox('${receiptUrl}')">
@@ -552,7 +552,17 @@ function showToast(msg, type='gold') {
   t._timer = setTimeout(() => t.className = 'toast', 3000);
 }
 
-// ── LIGHTBOX ───────────────────────────────────────────────────
+// Extract actual Cloudinary URL — handles plain URL or leftover formula text
+function getReceiptUrl(b) {
+  const raw = b['Receipt Link'] || '';
+  if (!raw) return '';
+  // If it's already a proper URL, return as-is
+  if (raw.startsWith('http')) return raw;
+  // If it's a HYPERLINK formula text, extract the URL
+  const match = raw.match(/HYPERLINK\("([^"]+)"/i);
+  if (match) return match[1];
+  return '';
+}
 function openLightbox(url) {
   document.getElementById('lightboxImg').src = url;
   document.getElementById('lightbox').classList.add('open');
