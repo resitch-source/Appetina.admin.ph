@@ -207,7 +207,11 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
 .cal-legend{display:flex;align-items:center;gap:0.5rem;margin-top:1rem;font-size:0.78rem;color:var(--muted);}
 .cal-dot{display:inline-block;width:10px;height:10px;border-radius:50%;}
 
-/* Google Calendar add button in modal */
+/* Admin add receipt button */
+.add-receipt-btn{display:inline-flex;align-items:center;gap:4px;background:var(--brown);color:#fff;border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:600;cursor:pointer;letter-spacing:0.03em;transition:background 0.2s;user-select:none;}
+.add-receipt-btn:hover{background:#a0521a;}
+.admin-receipt-uploading{font-size:0.8rem;color:var(--gold);padding:0.5rem 0;display:flex;align-items:center;gap:0.5rem;}
+.admin-receipt-uploading .spinner-sm{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
 .gcal-btn{display:inline-flex;align-items:center;gap:6px;background:#4285F4;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;margin-top:0.5rem;}
 .gcal-btn:hover{background:#3367d6;}
 .loading-state,.empty-state{text-align:center;padding:3rem 1rem;color:var(--muted);}
@@ -564,8 +568,14 @@ function openModal(idx) {
       <div style="font-size:0.85rem;color:var(--cream);background:var(--card);border-radius:6px;padding:0.75rem 1rem;">${b['Special Notes']}</div>
     </div>` : ''}
     <div class="detail-section">
-      <div class="detail-section-title">🧾 Payment Receipt</div>
-      ${receiptSection}
+      <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        🧾 Payment Receipt
+        <label class="add-receipt-btn" title="Add more images">
+          <input type="file" id="adminReceiptInput" accept="image/*" multiple style="display:none" onchange="adminAddReceipts(this)"/>
+          ➕ Add Image
+        </label>
+      </div>
+      <div id="receiptSectionBody">${receiptSection}</div>
     </div>
   `;
 
@@ -798,6 +808,93 @@ function buildGCalLink(b) {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${desc}&location=${loc}`;
 }
 
+
+// ── ADMIN RECEIPT UPLOAD ───────────────────────────────────────
+const CLOUDINARY_CLOUD  = 'dmmpvbllb';
+const CLOUDINARY_PRESET = 'appetina_receipts';
+
+async function adminAddReceipts(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  if (!currentRef) return;
+
+  const body = document.getElementById('receiptSectionBody');
+  if (!body) return;
+
+  // Show uploading indicator
+  const indicator = document.createElement('div');
+  indicator.className = 'admin-receipt-uploading';
+  indicator.innerHTML = '<div class="spinner-sm"></div> Uploading ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '…';
+  body.appendChild(indicator);
+
+  const newUrls = [];
+  for (const file of files) {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', CLOUDINARY_PRESET);
+      fd.append('context', 'booking_ref=' + currentRef);
+      const res  = await fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/image/upload', { method:'POST', body: fd });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message);
+      newUrls.push(json.secure_url);
+    } catch(e) {
+      showToast('❌ Upload failed: ' + e.message, 'red');
+    }
+  }
+
+  indicator.remove();
+  input.value = '';
+
+  if (!newUrls.length) return;
+
+  // Merge with existing URLs for this booking
+  const booking = allBookings.find(x => x['Booking Ref'] === currentRef);
+  const existingRaw = booking ? getReceiptUrl(booking) : '';
+  const existing = existingRaw ? existingRaw.split('\n').filter(u => u.startsWith('http')) : [];
+  const allUrls = [...existing, ...newUrls];
+
+  // Save back to Apps Script → Google Sheet
+  try {
+    const url = SCRIPT_URL + '?action=updateReceipts&pass=' + encodeURIComponent(sessionPass) +
+                '&ref=' + encodeURIComponent(currentRef) +
+                '&urls=' + encodeURIComponent(allUrls.join('\n'));
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to save');
+
+    // Update local booking data
+    if (booking) {
+      booking['Receipt Link'] = allUrls.join('\n');
+      booking['Receipt'] = 'Yes ✅ (' + allUrls.length + ' image' + (allUrls.length > 1 ? 's' : '') + ')';
+    }
+
+    // Re-render receipt section in modal
+    body.innerHTML = buildReceiptSection(allUrls);
+    applyFilters(); // refresh table thumbnails
+    showToast('✅ ' + newUrls.length + ' image' + (newUrls.length > 1 ? 's' : '') + ' added to receipt', 'gold');
+  } catch(e) {
+    showToast('❌ Could not save to sheet: ' + e.message, 'red');
+  }
+}
+
+function buildReceiptSection(allUrls) {
+  if (!allUrls || !allUrls.length) {
+    return `<div class="no-receipt-box"><div style="font-size:1.5rem;margin-bottom:0.4rem;">🧾</div>No receipt uploaded.</div>`;
+  }
+  return `<div class="receipt-preview">
+    ${allUrls.map((url, i) => `
+      <div style="margin-bottom:0.75rem;">
+        ${allUrls.length > 1 ? `<div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px;">Image ${i+1} of ${allUrls.length}</div>` : ''}
+        <div class="receipt-img-wrap" onclick="openLightbox('${url}')">
+          <img src="${url}" alt="Receipt ${i+1}"
+               onerror="this.parentElement.innerHTML='<div style=\\'padding:1rem;color:var(--muted);text-align:center;\\'>⚠️ <a href=\\'${url}\\' target=\\'_blank\\' style=\\'color:var(--gold)\\'>Open →</a></div>'"/>
+          <div class="receipt-img-zoom">🔍 Click to enlarge</div>
+        </div>
+        <a class="receipt-open-btn" href="${url}" target="_blank">↗ Open image ${i+1}</a>
+      </div>`).join('')}
+  </div>`;
+}
 
 function updateGCalBtn(b) {
   const gcalBtn = document.getElementById('gcalBtn');
