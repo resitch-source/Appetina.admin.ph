@@ -131,10 +131,49 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
 .save-status-btn:disabled{opacity:0.5;cursor:not-allowed;}
 
 /* Receipt image preview in modal */
-.receipt-preview{margin-top:0.5rem;}
-.receipt-preview img{max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--border2);object-fit:contain;}
-.receipt-preview a{display:inline-flex;align-items:center;gap:6px;color:var(--gold);font-size:0.85rem;border:1px solid var(--border2);border-radius:6px;padding:0.4rem 0.9rem;text-decoration:none;margin-top:0.5rem;}
-.receipt-preview a:hover{border-color:var(--gold);}
+.receipt-preview{margin-top:0.6rem;}
+.receipt-img-wrap{
+  position:relative;cursor:zoom-in;display:inline-block;
+  border-radius:10px;overflow:hidden;border:1px solid var(--border2);
+  width:100%;background:var(--card);
+}
+.receipt-img-wrap img{
+  width:100%;max-height:380px;object-fit:contain;display:block;
+  transition:transform 0.2s;
+}
+.receipt-img-wrap:hover img{transform:scale(1.02);}
+.receipt-img-zoom{
+  position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);
+  color:#fff;border-radius:6px;padding:4px 8px;font-size:0.72rem;
+  backdrop-filter:blur(4px);pointer-events:none;
+}
+.receipt-open-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  color:var(--gold);font-size:0.83rem;
+  border:1px solid var(--border2);border-radius:6px;
+  padding:0.45rem 1rem;text-decoration:none;margin-top:0.6rem;
+  transition:border-color 0.2s;
+}
+.receipt-open-btn:hover{border-color:var(--gold);}
+.no-receipt-box{
+  background:var(--card);border:1px dashed var(--border2);border-radius:8px;
+  padding:1.5rem;text-align:center;color:var(--muted);font-size:0.85rem;
+}
+
+/* Lightbox */
+#lightbox{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);
+  z-index:500;align-items:center;justify-content:center;cursor:zoom-out;
+}
+#lightbox.open{display:flex;}
+#lightbox img{max-width:92vw;max-height:92vh;border-radius:10px;object-fit:contain;box-shadow:0 8px 60px rgba(0,0,0,0.8);}
+#lightbox-close{position:absolute;top:1rem;right:1.2rem;color:#fff;font-size:2rem;cursor:pointer;line-height:1;background:rgba(0,0,0,0.5);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+
+/* Table receipt thumbnail */
+.receipt-thumb{width:36px;height:36px;border-radius:5px;object-fit:cover;border:1px solid var(--border2);cursor:pointer;vertical-align:middle;}
+.receipt-link{display:inline-flex;align-items:center;gap:4px;color:var(--gold);font-size:0.78rem;text-decoration:none;border:1px solid var(--border2);border-radius:4px;padding:2px 8px;}
+.receipt-link:hover{border-color:var(--gold);}
+.no-receipt{color:var(--muted);font-size:0.75rem;}
 
 /* ── LOADING / EMPTY ── */
 .loading-state,.empty-state{text-align:center;padding:3rem 1rem;color:var(--muted);}
@@ -249,6 +288,12 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
 
 <div class="toast" id="toast"></div>
 
+<!-- LIGHTBOX -->
+<div id="lightbox" onclick="closeLightbox()">
+  <div id="lightbox-close" onclick="closeLightbox()">✕</div>
+  <img id="lightboxImg" src="" alt="Receipt"/>
+</div>
+
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzgiIM1LfbujitaT3an4egn1NS9bH5Ll3FmjtiHaohmLNHtl0EV1fuB5W-InqNdUUvI/exec';
@@ -343,8 +388,12 @@ function renderTable(rows) {
     const bal  = +b['Balance (₱)'] || 0;
     const receipt = b['Receipt Link'];
     const receiptHtml = receipt
-      ? `<a class="receipt-link" href="${receipt}" target="_blank" onclick="event.stopPropagation()">🖼 View</a>`
-      : `<span class="no-receipt">None</span>`;
+      ? `<img class="receipt-thumb" src="${receipt}" alt="receipt"
+           onclick="event.stopPropagation();openLightbox('${receipt}')"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"/>
+         <a class="receipt-link" href="${receipt}" target="_blank"
+            onclick="event.stopPropagation()" style="display:none">🖼 View</a>`
+      : `<span class="no-receipt">—</span>`;
     return `<tr onclick="openModal(${i})">
       <td><span class="td-ref">${b['Booking Ref']||'—'}</span></td>
       <td><span class="status-badge s-${st}">${st}</span></td>
@@ -379,11 +428,22 @@ function openModal(idx) {
   const down = +b['Downpayment (₱)'] || 0;
   const bal  = +b['Balance (₱)'] || 0;
 
-  const receiptSection = b['Receipt Link']
+  const receiptUrl = b['Receipt Link'] || '';
+  const receiptSection = receiptUrl
     ? `<div class="receipt-preview">
-        <a href="${b['Receipt Link']}" target="_blank">🖼 View Full Receipt →</a>
-       </div>`
-    : `<div style="color:var(--muted);font-size:0.83rem;">No receipt uploaded.</div>`;
+        <div class="receipt-img-wrap" onclick="openLightbox('${receiptUrl}')">
+          <img src="${receiptUrl}" alt="Payment Receipt"
+               onerror="this.parentElement.innerHTML='<div style=\\'padding:1rem;color:var(--muted);text-align:center;font-size:0.85rem;\\'>⚠️ Image could not load.<br><a href=\\'${receiptUrl}\\' target=\\'_blank\\' style=\\'color:var(--gold)\\'>Open in new tab →</a></div>'"/>
+          <div class="receipt-img-zoom">🔍 Click to enlarge</div>
+        </div>
+        <a class="receipt-open-btn" href="${receiptUrl}" target="_blank">
+          ↗ Open full image in new tab
+        </a>
+      </div>`
+    : `<div class="no-receipt-box">
+        <div style="font-size:1.5rem;margin-bottom:0.4rem;">🧾</div>
+        No receipt uploaded for this booking.
+      </div>`;
 
   document.getElementById('modalBody').innerHTML = `
     <div class="detail-section">
@@ -492,8 +552,26 @@ function showToast(msg, type='gold') {
   t._timer = setTimeout(() => t.className = 'toast', 3000);
 }
 
+// ── LIGHTBOX ───────────────────────────────────────────────────
+function openLightbox(url) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+  // restore scroll only if modal is also closed
+  if (!currentRef) document.body.style.overflow = '';
+}
+
 // Keyboard close
-document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('lightbox').classList.contains('open')) closeLightbox();
+    else closeModal();
+  }
+});
 </script>
 </body>
 </html>
