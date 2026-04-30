@@ -292,6 +292,7 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
       <div class="stat-card"><div class="stat-label">New</div><div class="stat-value" id="sNew" style="color:#4fa3ff">—</div></div>
       <div class="stat-card"><div class="stat-label">Confirmed</div><div class="stat-value" id="sConf" style="color:#66bb6a">—</div></div>
       <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value" id="sRev">—</div><div class="stat-sub">confirmed bookings</div></div>
+      <div class="stat-card"><div class="stat-label">Pending Balance</div><div class="stat-value" id="sBal">—</div><div class="stat-sub">unpaid balances</div></div>
       <div class="stat-card" style="cursor:pointer;" onclick="loadMenuTrends()" title="Click to load AI menu trends">
         <div class="stat-label">🤖 Menu Trends</div>
         <div class="stat-value" id="sTrend" style="font-size:1rem;color:var(--gold);">Click to analyze</div>
@@ -428,22 +429,23 @@ function logout() {
 
 // ── LOAD BOOKINGS ──────────────────────────────────────────────
 async function loadBookings() {
-  document.getElementById('tableBody').innerHTML =
-    '<tr><td colspan="11"><div class="loading-state"><div class="spinner-lg"></div>Loading bookings…</div></td></tr>';
+  const tbody = document.getElementById('tableBody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="11"><div class="loading-state"><div class="spinner-lg"></div>Loading bookings…</div></td></tr>';
   try {
-    const url = SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(sessionPass);
+    const url  = SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(sessionPass);
     const res  = await fetch(url);
     const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'Failed');
+    if (!json.success) throw new Error(json.error || 'Server returned failure');
     allBookings = json.bookings || [];
-    updateStats();
-    applyFilters();
-    showToast('✓ Loaded ' + allBookings.length + ' bookings', 'gold');
   } catch(e) {
-    document.getElementById('tableBody').innerHTML =
-      '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">⚠️</div>Could not load bookings.<br><small>' + e.message + '</small></div></td></tr>';
-    showToast('Error loading bookings', 'red');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">⚠️</div>Could not load bookings.<br><small>' + e.message + '</small></div></td></tr>';
+    showToast('Error loading bookings: ' + e.message, 'red');
+    return; // stop here — don't call updateStats/applyFilters
   }
+  // Data loaded — update UI separately so any UI error doesn't show "could not load"
+  try { updateStats(); } catch(e) { console.warn('updateStats error:', e); }
+  try { applyFilters(); } catch(e) { console.warn('applyFilters error:', e); }
+  showToast('✓ Loaded ' + allBookings.length + ' bookings', 'gold');
 }
 
 // ── STATS ──────────────────────────────────────────────────────
@@ -802,7 +804,7 @@ async function loadMenuTrends() {
     }
 
     document.getElementById('trendsBody').innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);"><div class="spinner-lg"></div>Asking AI to analyze trends…</div>';
-    document.getElementById('sTrend').textContent = 'Analyzing…';
+    safe('sTrend', 'Analyzing…');
 
     const statsText = Object.entries(stats).map(([cat, items]) =>
       cat.toUpperCase() + ': ' + items.slice(0,5).map(i=>i.item+' ('+i.count+'x)').join(', ')
@@ -836,12 +838,13 @@ async function loadMenuTrends() {
     html += `</div><div style="background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.1rem;font-size:0.85rem;color:var(--cream);line-height:1.7;">${analysis}</div>`;
 
     document.getElementById('trendsBody').innerHTML = html;
-    document.getElementById('sTrend').textContent = 'View Trends';
-    document.getElementById('sTrendSub').textContent = confirmed + ' confirmed bookings analyzed';
+    safe('sTrend', 'View Trends');
+    safe('sTrendSub', confirmed + ' confirmed bookings analyzed');
 
   } catch(e) {
-    document.getElementById('trendsBody').innerHTML = '<p style="color:#ff6b6b;text-align:center;padding:2rem;">Error: ' + e.message + '</p>';
-    document.getElementById('sTrend').textContent = 'Try again';
+    const tb = document.getElementById('trendsBody');
+    if (tb) tb.innerHTML = '<p style="color:#ff6b6b;text-align:center;padding:2rem;">Error: ' + e.message + '</p>';
+    safe('sTrend', 'Try again');
   }
 }
 
