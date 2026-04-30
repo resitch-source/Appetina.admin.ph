@@ -37,16 +37,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* ── LOGIN ── */
 #loginScreen{
-  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;
   background-image:radial-gradient(ellipse at 30% 20%, rgba(139,69,19,0.15) 0%, transparent 60%),
                    radial-gradient(ellipse at 70% 80%, rgba(201,168,76,0.08) 0%, transparent 60%);
 }
-.login-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:2.5rem 2.5rem 2rem;width:360px;text-align:center;}
+.login-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:2.5rem 2.5rem 2rem;width:360px;text-align:center;position:relative;z-index:1001;}
 .login-logo{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--gold);margin-bottom:0.25rem;}
 .login-sub{font-size:0.8rem;color:var(--muted);margin-bottom:2rem;letter-spacing:0.12em;text-transform:uppercase;}
-.login-input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-size:0.95rem;font-family:inherit;margin-bottom:1rem;outline:none;transition:border-color 0.2s;}
+.login-input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-size:0.95rem;font-family:inherit;margin-bottom:1rem;outline:none;transition:border-color 0.2s;position:relative;z-index:1001;}
 .login-input:focus{border-color:var(--gold);}
-.login-btn{width:100%;background:var(--brown);color:#fff;border:none;border-radius:8px;padding:0.8rem;font-size:0.95rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.2s;}
+.login-btn{width:100%;background:var(--brown);color:#fff;border:none;border-radius:8px;padding:0.8rem;font-size:0.95rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.2s;position:relative;z-index:1001;}
 .login-btn:hover{background:#a0521a;}
 .login-err{color:#ff6b6b;font-size:0.82rem;margin-top:0.5rem;min-height:1.2rem;}
 
@@ -239,7 +239,7 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
 .empty-icon{font-size:2.5rem;margin-bottom:0.75rem;}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:0.75rem 1.2rem;font-size:0.85rem;z-index:999;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:0.75rem 1.2rem;font-size:0.85rem;z-index:300;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;}
 .toast.show{opacity:1;transform:translateY(0);}
 .toast.gold{border-color:var(--gold);color:var(--gold);}
 .toast.red{border-color:#ff6b6b;color:#ff6b6b;}
