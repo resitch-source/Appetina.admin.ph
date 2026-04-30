@@ -210,7 +210,12 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
 .cal-legend{display:flex;align-items:center;gap:0.5rem;margin-top:1rem;font-size:0.78rem;color:var(--muted);}
 .cal-dot{display:inline-block;width:10px;height:10px;border-radius:50%;}
 
-/* Admin add receipt button */
+/* Editable fields in modal */
+.edit-field{background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:0.4rem 0.7rem;color:var(--text);font-size:0.85rem;font-family:inherit;width:100%;outline:none;transition:border-color 0.2s;}
+.edit-field:focus{border-color:var(--gold);}
+.save-edits-btn{background:var(--brown);color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.2s;}
+.save-edits-btn:hover{background:#a0521a;}
+.save-edits-btn:disabled{opacity:0.5;cursor:not-allowed;}
 .add-receipt-btn{display:inline-flex;align-items:center;gap:4px;background:var(--brown);color:#fff;border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:600;cursor:pointer;letter-spacing:0.03em;transition:background 0.2s;user-select:none;}
 .add-receipt-btn:hover{background:#a0521a;}
 .admin-receipt-uploading{font-size:0.8rem;color:var(--gold);padding:0.5rem 0;display:flex;align-items:center;gap:0.5rem;}
@@ -448,11 +453,12 @@ function updateStats() {
   const nConf= allBookings.filter(b=>b['Status']==='Confirmed').length;
   const rev  = allBookings.filter(b=>b['Status']==='Confirmed').reduce((s,b)=>s+(+b['Total (₱)']||0),0);
   const bal  = allBookings.filter(b=>b['Status']!=='Cancelled').reduce((s,b)=>s+(+b['Balance (₱)']||0),0);
-  document.getElementById('sTot').textContent  = tot;
-  document.getElementById('sNew').textContent  = nNew;
-  document.getElementById('sConf').textContent = nConf;
-  document.getElementById('sRev').textContent  = '₱' + rev.toLocaleString();
-  document.getElementById('sBal').textContent  = '₱' + bal.toLocaleString();
+  const safe = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  safe('sTot',  tot);
+  safe('sNew',  nNew);
+  safe('sConf', nConf);
+  safe('sRev',  '₱' + rev.toLocaleString());
+  safe('sBal',  '₱' + bal.toLocaleString());
 }
 
 // ── FILTERS ───────────────────────────────────────────────────
@@ -548,11 +554,14 @@ function openModal(idx) {
 
   document.getElementById('modalBody').innerHTML = `
     <div class="detail-section">
-      <div class="detail-section-title">👤 Client Information</div>
+      <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        👤 Client Information
+        <button class="save-edits-btn" onclick="saveEdits()">💾 Save Changes</button>
+      </div>
       <div class="detail-grid">
-        <div class="detail-item"><label>Name</label><span>${b['Client Name']||'—'}</span></div>
-        <div class="detail-item"><label>Contact</label><span>${b['Contact']||'—'}</span></div>
-        <div class="detail-item"><label>Email</label><span>${b['Email']||'—'}</span></div>
+        <div class="detail-item"><label>Name</label><input class="edit-field" id="edit_clientName" value="${(b['Client Name']||'').replace(/"/g,'&quot;')}"/></div>
+        <div class="detail-item"><label>Contact</label><input class="edit-field" id="edit_contact" value="${(b['Contact']||'').replace(/"/g,'&quot;')}"/></div>
+        <div class="detail-item"><label>Email</label><input class="edit-field" id="edit_email" value="${(b['Email']||'').replace(/"/g,'&quot;')}"/></div>
         <div class="detail-item"><label>Submitted</label><span>${b['Timestamp']||'—'}</span></div>
       </div>
     </div>
@@ -561,12 +570,34 @@ function openModal(idx) {
       <div class="detail-grid">
         <div class="detail-item"><label>Event Type</label><span>${b['Event Type']||'—'}</span></div>
         <div class="detail-item"><label>Occasion</label><span>${b['Occasion']||'—'}</span></div>
-        <div class="detail-item"><label>Date</label><span>${b['Event Date']||'—'}</span></div>
-        <div class="detail-item"><label>Time</label><span>${b['Event Time']||'—'}</span></div>
+        <div class="detail-item"><label>Date</label><input class="edit-field" id="edit_date" type="date" value="${b['Event Date']||''}"/></div>
+        <div class="detail-item"><label>Time</label><input class="edit-field" id="edit_time" type="time" value="${b['Event Time']||''}"/></div>
         <div class="detail-item" style="grid-column:1/-1">
           <label>Venue</label>
-          <span>${b['Venue']||'—'}</span>
+          <input class="edit-field" id="edit_venue" value="${(b['Venue']||'').replace(/"/g,'&quot;')}" style="width:100%;margin-bottom:0.5rem;"/>
           ${b['Venue'] ? `
+          <div class="venue-map-wrap" id="venueMap_${currentRef}">
+            <div class="venue-map-loading">
+              <div class="spinner-sm" style="width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+              Loading map…
+            </div>
+          </div>
+          <div class="venue-nav-row">
+            <a class="venue-nav-btn gmaps" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b['Venue'])}" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              Google Maps
+            </a>
+            <a class="venue-nav-btn waze" href="https://waze.com/ul?q=${encodeURIComponent(b['Venue'])}&navigate=yes" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 6.63C19.08 3.23 15.69 1 12 1 7.03 1 3 5.03 3 10c0 1.68.45 3.26 1.23 4.63L3 21l6.37-1.23C10.74 20.55 11.36 21 12 21c4.97 0 9-4.03 9-9 0-1.96-.62-3.77-1.68-5.25l.22-.12zM12 19c-.56 0-1.11-.07-1.63-.2L6.7 19.7l.9-3.67-.2-.33C6.53 14.44 6 12.27 6 10c0-3.31 2.69-6 6-6s6 2.69 6 6-2.69 6-6 6z"/></svg>
+              Waze
+            </a>
+            <a class="venue-nav-btn osm" href="https://www.openstreetmap.org/search?query=${encodeURIComponent(b['Venue'])}" target="_blank" rel="noopener">🗺 OpenStreetMap</a>
+          </div>` : ''}
+        </div>
+        <div class="detail-item"><label>Color Motif</label><span>${b['Color Motif']||'—'}</span></div>
+        <div class="detail-item"><label>No. of Pax</label><span>${b['No. of Pax']||'—'}</span></div>
+      </div>
+    </div>
           <div class="venue-map-wrap" id="venueMap_${currentRef}">
             <div class="venue-map-loading">
               <div class="spinner-sm" style="width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
@@ -618,11 +649,12 @@ function openModal(idx) {
       <div class="detail-section-title">➕ Additional Orders</div>
       <div style="font-size:0.85rem;color:var(--cream);line-height:1.8;">${(b['Addon Orders']||'').split(' | ').map(a=>'• '+a).join('<br>')}</div>
     </div>` : ''}
-    ${b['Special Notes'] ? `
     <div class="detail-section">
       <div class="detail-section-title">📝 Special Notes</div>
-      <div style="font-size:0.85rem;color:var(--cream);background:var(--card);border-radius:6px;padding:0.75rem 1rem;">${b['Special Notes']}</div>
-    </div>` : ''}
+      <textarea id="edit_notes" class="edit-field" rows="3"
+        style="width:100%;resize:vertical;font-family:inherit;font-size:0.85rem;line-height:1.6;"
+        placeholder="Add notes about this booking…">${b['Special Notes']||''}</textarea>
+    </div>
     <div class="detail-section">
       <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
         🧾 Payment Receipt
@@ -651,9 +683,54 @@ function closeModal() {
   currentRef = null;
 }
 
+// ── SAVE EDITS ────────────────────────────────────────────────
+async function saveEdits() {
+  if (!currentRef) return;
+  const btn = document.querySelector('.save-edits-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  const fields = {
+    clientName: document.getElementById('edit_clientName')?.value.trim() || '',
+    contact:    document.getElementById('edit_contact')?.value.trim()    || '',
+    email:      document.getElementById('edit_email')?.value.trim()      || '',
+    eventDate:  document.getElementById('edit_date')?.value              || '',
+    eventTime:  document.getElementById('edit_time')?.value              || '',
+    venue:      document.getElementById('edit_venue')?.value.trim()      || '',
+    notes:      document.getElementById('edit_notes')?.value.trim()      || ''
+  };
+
+  try {
+    const url = SCRIPT_URL + '?action=updateBooking&pass=' + encodeURIComponent(sessionPass) +
+                '&ref=' + encodeURIComponent(currentRef) +
+                '&data=' + encodeURIComponent(JSON.stringify(fields));
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Server returned failure');
+
+    // Update local data
+    const b = allBookings.find(x => x['Booking Ref'] === currentRef);
+    if (b) {
+      b['Client Name']   = fields.clientName;
+      b['Contact']       = fields.contact;
+      b['Email']         = fields.email;
+      b['Event Date']    = fields.eventDate;
+      b['Event Time']    = fields.eventTime;
+      b['Venue']         = fields.venue;
+      b['Special Notes'] = fields.notes;
+    }
+    applyFilters();
+    showToast('✓ Booking details saved', 'gold');
+  } catch(e) {
+    console.error('saveEdits error:', e);
+    showToast('❌ Save failed: ' + e.message, 'red');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save Changes'; }
+  }
+}
+
 // ── UPDATE STATUS ──────────────────────────────────────────────
 async function saveStatus() {
-  if (!currentRef) return;
+  if (!currentRef) { showToast('No booking selected', 'red'); return; }
   const status = document.getElementById('statusSelect').value;
   const btn = document.getElementById('saveStatusBtn');
   btn.disabled = true;
@@ -663,16 +740,23 @@ async function saveStatus() {
                 '&ref=' + encodeURIComponent(currentRef) + '&status=' + encodeURIComponent(status);
     const res  = await fetch(url);
     const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'Failed');
-    // Update local data
+    if (!json.success) throw new Error(json.error || 'Server returned failure');
+
+    // Update local booking data
     const b = allBookings.find(x => x['Booking Ref'] === currentRef);
-    if (b) { b['Status'] = status; updateGCalBtn(b); }
+    if (b) {
+      b['Status'] = status;
+      updateGCalBtn(b);
+    }
     updateStats();
-    applyFilters();
+    applyFilters(); // refresh table without closing modal
+
+    // Update the status badge in modal title area
     showToast('✓ Status updated to ' + status, 'gold');
-    closeModal();
+
   } catch(e) {
-    showToast('Failed to update status', 'red');
+    console.error('saveStatus error:', e);
+    showToast('❌ Failed: ' + e.message, 'red');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Save Status';
