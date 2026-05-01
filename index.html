@@ -1280,16 +1280,6 @@ function updateShareButtons(b) {
   }
 }
 
-function updateShareButtons(b) {
-  const gcalBtn = document.getElementById('gcalBtn');
-  if (!gcalBtn) return;
-  if (b && (b['Status'] === 'Confirmed' || b['Status'] === 'Done')) {
-    const link = buildGCalLink(b);
-    if (link) { gcalBtn.href = link; gcalBtn.style.display = 'inline-flex'; return; }
-  }
-  gcalBtn.style.display = 'none';
-}
-
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (document.getElementById('lightbox').classList.contains('open')) closeLightbox();
