@@ -1215,63 +1215,75 @@ async function loadVenueMap(venue, ref) {
 
 // ── KITCHEN BRIEF SHARE BUTTONS ───────────────────────────────
 function buildKitchenBriefMessage(b) {
-  const total = +b['Total (\u20b1)']  || 0;
-  const down  = +b['Downpayment (\u20b1)'] || 0;
-  const bal   = total - down;
+  // Find total/balance safely regardless of field name encoding
+  var total = 0, down = 0;
+  Object.keys(b).forEach(function(k) {
+    if (k.includes('Total'))       total = +b[k] || total;
+    if (k.includes('Downpayment')) down  = +b[k] || down;
+  });
+  var bal = total - down;
+
   return (
-    '\ud83c\udf7d\ufe0f *KITCHEN BRIEF — ' + str(b['Booking Ref']) + '*\n' +
+    '\ud83c\udf7d\ufe0f *KITCHEN BRIEF \u2014 ' + str(b['Booking Ref']) + '*\n' +
     '\u2705 Status: CONFIRMED\n\n' +
-    '\ud83d\udcc5 *Date & Time:* ' + formatDate(b['Event Date']) + ' at ' + formatTime(b['Event Time']) + '\n' +
-    '\ud83d\udccd *Venue:* ' + str(b['Venue']) + '\n' +
-    '\ud83c\udfa8 *Color Motif:* ' + str(b['Color Motif']||'—') + '\n' +
-    '\ud83d\udc65 *Pax:* ' + str(b['No. of Pax']) + '\n' +
-    '\ud83d\udce6 *Package:* ' + str(b['Package']) + '\n\n' +
-    '\ud83c\udf7d\ufe0f *MENU TO PREPARE:*\n' +
-    '\ud83e\udd69 Beef: '    + str(b['Beef'])    + '\n' +
-    '\ud83d\udc1f Fish: '    + str(b['Fish'])    + '\n' +
-    '\ud83c\udf57 Chicken: ' + str(b['Chicken']) + '\n' +
-    '\ud83e\udd66 Veggie: '  + str(b['Veggie'])  + '\n' +
-    '\ud83c\udf5d Pasta: '   + str(b['Pasta'])   + '\n' +
-    '\ud83c\udf6e Desserts: '+ str(b['Desserts'])+ '\n' +
-    '\ud83e\udd64 Drinks: '  + str(b['Drinks'])  + '\n' +
-    (str(b['Lechon']).includes('Yes') ? '\ud83d\udc37 Lechon: ' + str(b['Lechon']) + '\n' : '') +
-    (str(b['Addon Orders']) && str(b['Addon Orders']) !== 'None' ? '\n\u2795 *Addons:* ' + str(b['Addon Orders']) + '\n' : '') +
-    (str(b['Special Notes']) ? '\n\ud83d\udcdd *Notes:* ' + str(b['Special Notes']) + '\n' : '') +
-    '\n\ud83d\udcb0 *Payment:*\n' +
-    'Total: \u20b1' + total.toLocaleString() + '\n' +
-    'Down: \u20b1' + down.toLocaleString() + '\n' +
-    'Balance: \u20b1' + bal.toLocaleString() + '\n\n' +
-    '\ud83d\udc64 *Client:* ' + str(b['Client Name']) + ' | ' + str(b['Contact']) + '\n\n' +
-    '— ' + 'Appetina Catering \ud83c\udf7d\ufe0f'
+    '\ud83d\udcc5 *Date:* ' + formatDate(b['Event Date']) + ' at ' + formatTime(b['Event Time']) + '\n' +
+    '\ud83d\udccd *Venue:* ' + str(b['Venue']||'\u2014') + '\n' +
+    '\ud83c\udfa8 *Motif:* ' + str(b['Color Motif']||'\u2014') + '\n' +
+    '\ud83d\udc65 *Pax:* ' + str(b['No. of Pax']||'\u2014') + '\n' +
+    '\ud83d\udce6 *Package:* ' + str(b['Package']||'\u2014') + '\n\n' +
+    '\ud83c\udf7d\ufe0f *MENU:*\n' +
+    '\ud83e\udd69 Beef: '    + str(b['Beef']   ||'\u2014') + '\n' +
+    '\ud83d\udc1f Fish: '    + str(b['Fish']   ||'\u2014') + '\n' +
+    '\ud83c\udf57 Chicken: ' + str(b['Chicken']||'\u2014') + '\n' +
+    '\ud83e\udd66 Veggie: '  + str(b['Veggie'] ||'\u2014') + '\n' +
+    '\ud83c\udf5d Pasta: '   + str(b['Pasta']  ||'\u2014') + '\n' +
+    '\ud83c\udf6e Desserts: '+ str(b['Desserts']||'\u2014') + '\n' +
+    '\ud83e\udd64 Drinks: '  + str(b['Drinks'] ||'\u2014') + '\n' +
+    (str(b['Lechon']||'').toLowerCase().includes('yes') ? '\ud83d\udc37 Lechon: Yes\n' : '') +
+    (str(b['Addon Orders']||'').length > 2 && str(b['Addon Orders']) !== 'None'
+      ? '\n\u2795 Addons: ' + str(b['Addon Orders']) + '\n' : '') +
+    (str(b['Special Notes']||'').length > 0
+      ? '\n\ud83d\udcdd Notes: ' + str(b['Special Notes']) + '\n' : '') +
+    '\n\ud83d\udcb0 Total: \u20b1' + total.toLocaleString() +
+    ' | Down: \u20b1' + down.toLocaleString() +
+    ' | Balance: \u20b1' + bal.toLocaleString() + '\n\n' +
+    '\ud83d\udc64 Client: ' + str(b['Client Name']||'') + ' ' + str(b['Contact']||'') + '\n' +
+    '\u2014 Appetina Catering \ud83c\udf7d\ufe0f'
   );
 }
 
 function updateShareButtons(b) {
-  const gcalBtn = document.getElementById('gcalBtn');
-  const waBtn   = document.getElementById('waBtn');
-  const fbBtn   = document.getElementById('fbBtn');
+  var gcalBtn = document.getElementById('gcalBtn');
+  var waBtn   = document.getElementById('waBtn');
+  var fbBtn   = document.getElementById('fbBtn');
 
-  const isConfirmed = b && (b['Status'] === 'Confirmed' || b['Status'] === 'Done');
+  var isConfirmed = b && (b['Status'] === 'Confirmed' || b['Status'] === 'Done');
 
   if (isConfirmed) {
     // Google Calendar
-    const calLink = buildGCalLink(b);
-    if (gcalBtn && calLink) { gcalBtn.href = calLink; gcalBtn.style.display = 'inline-flex'; }
+    try {
+      var calLink = buildGCalLink(b);
+      if (gcalBtn && calLink) { gcalBtn.href = calLink; gcalBtn.style.display = 'inline-flex'; }
+    } catch(e) { console.warn('GCal link error:', e); }
 
-    // Kitchen brief message
-    const msg = buildKitchenBriefMessage(b);
-    const enc = encodeURIComponent(msg);
+    // Build kitchen brief message
+    try {
+      var msg = buildKitchenBriefMessage(b);
+      var enc = encodeURIComponent(msg);
 
-    // WhatsApp — sends to Cyrabell's number (admin)
-    if (waBtn) {
-      waBtn.href = 'https://wa.me/639062390453?text=' + enc;
-      waBtn.style.display = 'inline-flex';
-    }
-
-    // Facebook Messenger — opens Messenger to Cyrabell's profile
-    if (fbBtn) {
-      fbBtn.href = 'https://m.me/cyrabell.lasitch?text=' + enc;
-      fbBtn.style.display = 'inline-flex';
+      if (waBtn) {
+        waBtn.href = 'https://wa.me/639062390453?text=' + enc;
+        waBtn.style.display = 'inline-flex';
+      }
+      if (fbBtn) {
+        fbBtn.href = 'https://m.me/cyrabell.lasitch?text=' + enc;
+        fbBtn.style.display = 'inline-flex';
+      }
+    } catch(e) {
+      console.warn('Share button error:', e);
+      // Still show buttons even if message build fails
+      if (waBtn) { waBtn.href = 'https://wa.me/639062390453'; waBtn.style.display = 'inline-flex'; }
+      if (fbBtn) { fbBtn.href = 'https://m.me/cyrabell.lasitch'; fbBtn.style.display = 'inline-flex'; }
     }
   } else {
     if (gcalBtn) gcalBtn.style.display = 'none';
