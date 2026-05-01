@@ -234,8 +234,8 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
 /* Editable fields in modal */
 .edit-field{background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:0.4rem 0.7rem;color:var(--text);font-size:0.85rem;font-family:inherit;width:100%;outline:none;transition:border-color 0.2s;}
 .edit-field:focus{border-color:var(--gold);}
-.edit-toggle-btn{background:var(--card);color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:4px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s;display:inline-flex;align-items:center;gap:4px;}
-.edit-toggle-btn:hover{background:var(--brown);color:#fff;border-color:var(--brown);}
+
+
 .save-edits-btn{background:var(--brown);color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.2s;display:inline-flex;align-items:center;gap:4px;}
 .save-edits-btn:hover{background:#a0521a;}
 .save-edits-btn:disabled{opacity:0.5;cursor:not-allowed;}
@@ -678,26 +678,16 @@ function openModal(idx) {
 
   document.getElementById('modalBody').innerHTML = `
     <div class="detail-section">
-      <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
-        \ud83d\udc64 Client Information
-        <div style="display:flex;gap:0.5rem;">
-          <button class="edit-toggle-btn" id="editToggleBtn" onclick="toggleEdit()">✏️ Edit</button>
-          <button class="save-edits-btn" id="saveEditsBtn" onclick="saveEdits()" style="display:none;">\ud83d\udcbe Save Changes</button>
-          <button class="cancel-edits-btn" id="cancelEditsBtn" onclick="toggleEdit(false)" style="display:none;">✕ Cancel</button>
-        </div>
-      </div>
+      <div class="detail-section-title">\ud83d\udc64 Client Information</div>
       <div class="detail-grid">
         <div class="detail-item"><label>Name</label>
-          <span class="view-val">${str(b['Client Name'])||'--'}</span>
-          <input class="edit-field edit-input" id="edit_clientName" value="${str(b['Client Name']).replace(/"/g,'&quot;')}" style="display:none;"/>
+          <span>${str(b['Client Name'])||'--'}</span>
         </div>
         <div class="detail-item"><label>Contact</label>
-          <span class="view-val">${str(b['Contact'])||'--'}</span>
-          <input class="edit-field edit-input" id="edit_contact" value="${str(b['Contact'])}" style="display:none;"/>
+          <span>${str(b['Contact'])||'--'}</span>
         </div>
         <div class="detail-item"><label>Email</label>
-          <span class="view-val">${str(b['Email'])||'--'}</span>
-          <input class="edit-field edit-input" id="edit_email" value="${str(b['Email']).replace(/"/g,'&quot;')}" style="display:none;"/>
+          <span>${str(b['Email'])||'--'}</span>
         </div>
         <div class="detail-item"><label>Submitted</label><span>${str(b['Timestamp'])||'--'}</span></div>
       </div>
@@ -708,18 +698,15 @@ function openModal(idx) {
         <div class="detail-item"><label>Event Type</label><span>${str(b['Event Type'])||'--'}</span></div>
         <div class="detail-item"><label>Occasion</label><span>${str(b['Occasion'])||'--'}</span></div>
         <div class="detail-item"><label>Date</label>
-          <span class="view-val">${formatDate(b['Event Date'])}</span>
-          <input class="edit-field edit-input" id="edit_date" type="date" value="${parseSheetDate(b['Event Date'])}" style="display:none;"/>
+          <span>${formatDate(b['Event Date'])}</span>
         </div>
         <div class="detail-item"><label>Time</label>
-          <span class="view-val">${formatTime(b['Event Time'])}</span>
-          <input class="edit-field edit-input" id="edit_time" type="time" value="${parseSheetTime(b['Event Time'])}" style="display:none;"/>
+          <span>${formatTime(b['Event Time'])}</span>
         </div>
         <div class="detail-item"><label>Color Motif</label><span>${str(b['Color Motif'])||'--'}</span></div>
         <div class="detail-item"><label>No. of Pax</label><span>${str(b['No. of Pax'])||'--'}</span></div>
         <div class="detail-item" style="grid-column:1/-1"><label>Venue</label>
-          <span class="view-val">${str(b['Venue'])||'--'}</span>
-          <input class="edit-field edit-input" id="edit_venue" value="${str(b['Venue']).replace(/"/g,'&quot;')}" style="display:none;width:100%;margin-bottom:0.4rem;"/>
+          <span>${str(b['Venue'])||'--'}</span>
           ${b['Venue'] ? `
           <div class="venue-map-wrap" id="venueMap_${currentRef}" style="margin-top:0.5rem;">
             <div class="venue-map-loading">
@@ -770,10 +757,7 @@ function openModal(idx) {
     </div>` : ''}
     <div class="detail-section">
       <div class="detail-section-title">\ud83d\udcdd Special Notes</div>
-      <span class="view-val" id="view_notes" style="font-size:0.85rem;color:var(--cream);display:block;min-height:1.5rem;">${str(b['Special Notes'])||'<em style="color:var(--muted)">None</em>'}</span>
-      <textarea id="edit_notes" class="edit-field" rows="3"
-        style="width:100%;resize:vertical;font-family:inherit;font-size:0.85rem;line-height:1.6;display:none;"
-        placeholder="Add notes...">${str(b['Special Notes'])||''}</textarea>
+      <div style="font-size:0.85rem;color:var(--cream);background:var(--card);border-radius:6px;padding:0.75rem 1rem;min-height:2rem;">${str(b['Special Notes'])||'<em style="color:var(--muted)">None</em>'}</div>
     </div>
     <div class="detail-section">
       <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
@@ -801,81 +785,6 @@ function closeModal() {
   document.getElementById('modalOverlay').style.display = 'none';
   document.body.style.overflow = '';
   currentRef = null;
-}
-
-// -- EDIT TOGGLE -----------------------------------------------
-function toggleEdit(enable) {
-  const isEdit = enable !== undefined ? enable : 
-    document.getElementById('editToggleBtn').style.display !== 'none' &&
-    document.querySelector('.edit-input:not([style*="display:none"])') === null;
-
-  const editInputs  = document.querySelectorAll('.edit-input');
-  const viewVals    = document.querySelectorAll('.view-val');
-  const editToggle  = document.getElementById('editToggleBtn');
-  const saveBtn     = document.getElementById('saveEditsBtn');
-  const cancelBtn   = document.getElementById('cancelEditsBtn');
-
-  // Determine actual toggle state
-  const entering = isEdit;
-
-  editInputs.forEach(el => el.style.display = entering ? 'block' : 'none');
-  viewVals.forEach(el  => el.style.display  = entering ? 'none'  : '');
-
-  // Notes textarea special case
-  const notesView = document.getElementById('view_notes');
-  const notesEdit = document.getElementById('edit_notes');
-  if (notesView) notesView.style.display = entering ? 'none' : 'block';
-  if (notesEdit) notesEdit.style.display = entering ? 'block' : 'none';
-
-  if (editToggle) editToggle.style.display = entering ? 'none'         : 'inline-flex';
-  if (saveBtn)    saveBtn.style.display    = entering ? 'inline-flex'  : 'none';
-  if (cancelBtn)  cancelBtn.style.display  = entering ? 'inline-flex'  : 'none';
-}
-
-// -- SAVE EDITS -----------------------------------------------
-async function saveEdits() {
-  if (!currentRef) return;
-  const btn = document.querySelector('.save-edits-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-
-  const fields = {
-    clientName: document.getElementById('edit_clientName')?.value.trim() || '',
-    contact:    document.getElementById('edit_contact')?.value.trim()    || '',
-    email:      document.getElementById('edit_email')?.value.trim()      || '',
-    eventDate:  document.getElementById('edit_date')?.value              || '',
-    eventTime:  document.getElementById('edit_time')?.value              || '',
-    venue:      document.getElementById('edit_venue')?.value.trim()      || '',
-    notes:      document.getElementById('edit_notes')?.value.trim()      || ''
-  };
-
-  try {
-    const url = SCRIPT_URL + '?action=updateBooking&pass=' + encodeURIComponent(sessionPass) +
-                '&ref=' + encodeURIComponent(currentRef) +
-                '&data=' + encodeURIComponent(JSON.stringify(fields));
-    const res  = await fetch(url);
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'Server returned failure');
-
-    // Update local data
-    const b = allBookings.find(x => x['Booking Ref'] === currentRef);
-    if (b) {
-      b['Client Name']   = fields.clientName;
-      b['Contact']       = fields.contact;
-      b['Email']         = fields.email;
-      b['Event Date']    = fields.eventDate;
-      b['Event Time']    = fields.eventTime;
-      b['Venue']         = fields.venue;
-      b['Special Notes'] = fields.notes;
-    }
-    applyFilters();
-    toggleEdit(false);
-    showToast('OK Booking details saved', 'gold');
-  } catch(e) {
-    console.error('saveEdits error:', e);
-    showToast('\u274c Save failed: ' + e.message, 'red');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '\ud83d\udcbe Save Changes'; }
-  }
 }
 
 // -- UPDATE STATUS ----------------------------------------------
