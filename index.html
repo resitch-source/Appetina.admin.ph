@@ -313,6 +313,7 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
       <div class="nav-tabs">
         <button class="nav-tab active" id="tabBookings" onclick="switchTab('bookings')">📋 Bookings</button>
         <button class="nav-tab" id="tabCalendar" onclick="switchTab('calendar')">📅 Calendar</button>
+        <button class="nav-tab" id="tabFeedback" onclick="switchTab('feedback')">⭐ Reviews</button>
       </div>
       <button class="refresh-btn" onclick="loadBookings()">↻ Refresh</button>
       <button class="logout-btn" onclick="logout()">Sign Out</button>
@@ -381,6 +382,15 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
       <span class="cal-dot" style="background:#1565C0;"></span> NEW &nbsp;
       <span class="cal-dot" style="background:#4A148C;"></span> Done
     </div>
+  </div>
+
+  <!-- FEEDBACK VIEW -->
+  <div id="feedbackView" class="main" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold);margin:0;">⭐ Client Reviews</h2>
+      <button class="refresh-btn" onclick="loadFeedback()">↻ Refresh</button>
+    </div>
+    <div id="feedbackList" style="display:grid;gap:1rem;"></div>
   </div>
 </div>
 
@@ -923,9 +933,88 @@ function closeLightbox() {
 function switchTab(tab) {
   document.getElementById('tabBookings').classList.toggle('active', tab === 'bookings');
   document.getElementById('tabCalendar').classList.toggle('active', tab === 'calendar');
+  document.getElementById('tabFeedback').classList.toggle('active', tab === 'feedback');
   document.getElementById('bookingsView').style.display  = tab === 'bookings' ? 'block' : 'none';
   document.getElementById('calendarView').style.display  = tab === 'calendar' ? 'block' : 'none';
+  document.getElementById('feedbackView').style.display  = tab === 'feedback' ? 'block' : 'none';
   if (tab === 'calendar') renderCalendar();
+  if (tab === 'feedback') loadFeedback();
+}
+
+// -- FEEDBACK MANAGEMENT --------------------------------------
+async function loadFeedback() {
+  const list = document.getElementById('feedbackList');
+  list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);"><div class="spinner-lg"></div>Loading reviews...</div>';
+
+  try {
+    const res  = await fetch(SCRIPT_URL + '?action=feedbackList&pass=' + encodeURIComponent(sessionPass) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed');
+
+    const fb = json.feedback || [];
+    if (fb.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--muted);"><div style="font-size:3rem;margin-bottom:1rem;">📭</div>No reviews yet.<br><small>Reviews appear here when clients submit feedback after their event.</small></div>';
+      return;
+    }
+
+    list.innerHTML = fb.map(function(f) {
+      const stars = '\u2b50'.repeat(Math.max(1, Math.min(5, f.rating)));
+      const approvedBadge = f.approved
+        ? '<span style="background:#2E7D32;color:#fff;font-size:0.7rem;padding:3px 9px;border-radius:12px;font-weight:700;">✓ APPROVED</span>'
+        : '<span style="background:#B8860B;color:#fff;font-size:0.7rem;padding:3px 9px;border-radius:12px;font-weight:700;">PENDING</span>';
+
+      return '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:1.2rem;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">' +
+        '<div>' +
+        '<div style="font-weight:700;color:var(--gold);font-size:1rem;">' + escapeHtml(f.name) + '</div>' +
+        '<div style="font-size:0.78rem;color:var(--muted);margin-top:2px;">' + escapeHtml(f.eventType) + ' · ' + escapeHtml(f.eventDate) + ' · ' + escapeHtml(f.ref) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:0.5rem;align-items:center;">' + approvedBadge +
+        '<div style="font-size:0.95rem;">' + stars + '</div></div>' +
+        '</div>' +
+        '<div style="background:var(--card);border-left:4px solid var(--gold);padding:0.85rem 1rem;border-radius:6px;font-size:0.92rem;color:var(--cream);line-height:1.7;font-style:italic;margin-bottom:0.8rem;">' +
+        '"' + escapeHtml(f.message) + '"</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;color:var(--muted);">' +
+        '<span>Submitted ' + escapeHtml(f.submitted) + '</span>' +
+        '<div style="display:flex;gap:0.4rem;">' +
+        (f.approved
+          ? '<button onclick="toggleApprove(\'' + f.id + '\', false)" style="background:#666;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600;">Unapprove</button>'
+          : '<button onclick="toggleApprove(\'' + f.id + '\', true)" style="background:#2E7D32;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600;">✓ Approve</button>'
+        ) +
+        '<button onclick="deleteReview(\'' + f.id + '\')" style="background:#C62828;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600;">🗑 Delete</button>' +
+        '</div></div></div>';
+    }).join('');
+
+  } catch(e) {
+    list.innerHTML = '<div style="color:#ff6b6b;text-align:center;padding:2rem;">Error loading reviews: ' + e.message + '</div>';
+  }
+}
+
+async function toggleApprove(id, approved) {
+  try {
+    const res  = await fetch(SCRIPT_URL + '?action=feedbackApprove&pass=' + encodeURIComponent(sessionPass) + '&id=' + encodeURIComponent(id) + '&approved=' + approved);
+    const json = await res.json();
+    if (!json.success) throw new Error('Failed');
+    showToast(approved ? '✓ Review approved — now showing on booking page' : 'Review unapproved', 'gold');
+    loadFeedback();
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+async function deleteReview(id) {
+  if (!confirm('Delete this review permanently?')) return;
+  try {
+    const res  = await fetch(SCRIPT_URL + '?action=feedbackDelete&pass=' + encodeURIComponent(sessionPass) + '&id=' + encodeURIComponent(id));
+    const json = await res.json();
+    if (!json.success) throw new Error('Failed');
+    showToast('Review deleted', 'gold');
+    loadFeedback();
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];
+  });
 }
 
 // -- CALENDAR -------------------------------------------------
