@@ -108,6 +108,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 table{width:100%;border-collapse:collapse;font-size:0.83rem;}
 thead tr{background:var(--card);border-bottom:1px solid var(--border2);}
 th{padding:0.75rem 0.9rem;text-align:left;font-weight:600;color:var(--muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;white-space:nowrap;}
+.th-sort{cursor:pointer;user-select:none;-webkit-user-select:none;transition:color 0.15s,background 0.15s;}
+.th-sort:hover{color:var(--gold);background:rgba(201,168,76,0.08);}
+.th-sort.active{color:var(--gold);}
+.sort-ind{font-size:0.7rem;margin-left:3px;opacity:0.7;}
 tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;-webkit-tap-highlight-color:rgba(139,69,19,0.2);touch-action:manipulation;}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:rgba(139,69,19,0.08);}
@@ -355,9 +359,17 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
         <table id="bookingTable">
           <thead>
             <tr>
-              <th>Ref</th><th>Status</th><th>Client</th><th>Event Date</th>
-              <th>Event Type</th><th>Pax</th><th>Total</th><th>Downpayment</th>
-              <th>Balance</th><th>Receipt</th><th>Submitted</th>
+              <th class="th-sort" onclick="sortBy('Booking Ref')">Ref <span class="sort-ind" id="sort-Booking Ref"></span></th>
+              <th class="th-sort" onclick="sortBy('Status')">Status <span class="sort-ind" id="sort-Status"></span></th>
+              <th class="th-sort" onclick="sortBy('Client Name')">Client <span class="sort-ind" id="sort-Client Name"></span></th>
+              <th class="th-sort" onclick="sortBy('Event Date')">Event Date <span class="sort-ind" id="sort-Event Date"></span></th>
+              <th class="th-sort" onclick="sortBy('Event Type')">Event Type <span class="sort-ind" id="sort-Event Type"></span></th>
+              <th class="th-sort" onclick="sortBy('No. of Pax')">Pax <span class="sort-ind" id="sort-No. of Pax"></span></th>
+              <th class="th-sort" onclick="sortBy('Total')">Total <span class="sort-ind" id="sort-Total"></span></th>
+              <th class="th-sort" onclick="sortBy('Downpayment')">Downpayment <span class="sort-ind" id="sort-Downpayment"></span></th>
+              <th class="th-sort" onclick="sortBy('Balance')">Balance <span class="sort-ind" id="sort-Balance"></span></th>
+              <th>Receipt</th>
+              <th class="th-sort" onclick="sortBy('Timestamp')">Submitted <span class="sort-ind" id="sort-Timestamp"></span></th>
             </tr>
           </thead>
           <tbody id="tableBody">
@@ -593,7 +605,56 @@ function updateStats() {
   safe('sBal',  '₱' + bal.toLocaleString());
 }
 
-// -- FILTERS ---------------------------------------------------
+// -- FILTERS + SORTING -----------------------------------------
+let _sortKey = 'Timestamp';     // Default sort by submitted date
+let _sortDir = 'desc';          // newest first
+
+function sortBy(key) {
+  if (_sortKey === key) {
+    _sortDir = (_sortDir === 'asc') ? 'desc' : 'asc';
+  } else {
+    _sortKey = key;
+    _sortDir = 'asc';
+  }
+  applyFilters();
+}
+
+function sortRows(rows) {
+  const dir = _sortDir === 'asc' ? 1 : -1;
+
+  // Field name with peso uses different keys ("Total (₱)") - find dynamically
+  function getValue(row, key) {
+    if (key === 'Total' || key === 'Downpayment' || key === 'Balance') {
+      const k = Object.keys(row).find(function(k){ return k.indexOf(key) === 0; });
+      return +row[k] || 0;
+    }
+    if (key === 'No. of Pax') return +row[key] || 0;
+    if (key === 'Event Date' || key === 'Timestamp') {
+      const d = new Date(row[key]);
+      return isNaN(d) ? 0 : d.getTime();
+    }
+    return String(row[key] || '').toLowerCase();
+  }
+
+  return rows.sort(function(a, b) {
+    const va = getValue(a, _sortKey);
+    const vb = getValue(b, _sortKey);
+    if (va < vb) return -1 * dir;
+    if (va > vb) return  1 * dir;
+    return 0;
+  });
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll('.sort-ind').forEach(function(el){ el.textContent = ''; });
+  document.querySelectorAll('.th-sort').forEach(function(el){ el.classList.remove('active'); });
+  const ind = document.getElementById('sort-' + _sortKey);
+  if (ind) {
+    ind.textContent = _sortDir === 'asc' ? '▲' : '▼';
+    ind.parentElement.classList.add('active');
+  }
+}
+
 function applyFilters() {
   const q  = (document.getElementById('searchInput').value||'').toLowerCase();
   const st = document.getElementById('statusFilter').value;
@@ -604,6 +665,8 @@ function applyFilters() {
            (!st || b['Status']===st) &&
            (!ev || (b['Event Type']||'').toLowerCase().includes(ev.toLowerCase()));
   });
+  rows = sortRows(rows);
+  updateSortIndicators();
   document.getElementById('filterCount').textContent = rows.length + ' booking' + (rows.length!==1?'s':'') + ' shown';
   renderTable(rows);
 }
