@@ -902,7 +902,6 @@ function openModal(idx) {
         <div class="detail-item"><label>Chicken</label><span>${str(b['Chicken'])||'--'}</span></div>
         <div class="detail-item"><label>Veggie</label><span>${str(b['Veggie'])||'--'}</span></div>
         <div class="detail-item"><label>Pasta</label><span>${str(b['Pasta'])||'--'}</span></div>
-        <div class="detail-item"><label>Desserts</label><span>${str(b['Desserts'])||'--'}</span></div>
         <div class="detail-item"><label>Drinks</label><span>${str(b['Drinks'])||'--'}</span></div>
         <div class="detail-item"><label>\ud83d\udc37 Lechon</label><span style="color:${b['Lechon']&&str(b['Lechon']).includes('Yes')?'var(--gold)':'var(--muted)'}">${str(b['Lechon'])||'No'}</span></div>
       </div>
@@ -1290,7 +1289,7 @@ function buildGCalLink(b) {
     `Pax: ${b['No. of Pax']} | Package: ${b['Package']}\n` +
     `Total: ₱${total.toLocaleString()} | Balance: ₱${(total-down).toLocaleString()}\n` +
     `Menu: ${[b['Beef'],b['Fish'],b['Chicken'],b['Veggie'],b['Pasta']].filter(Boolean).join(' | ')}\n` +
-    `Desserts: ${b['Desserts']||'--'} | Drinks: ${b['Drinks']||'--'}`
+    `Drinks: ${b['Drinks']||'--'}`
   );
   const loc   = encodeURIComponent(b['Venue'] || '');
 
@@ -1458,7 +1457,6 @@ function buildKitchenBriefMessage(b) {
     '\ud83c\udf57 Chicken: ' + str(b['Chicken']||'\u2014') + '\n' +
     '\ud83e\udd66 Veggie: '  + str(b['Veggie'] ||'\u2014') + '\n' +
     '\ud83c\udf5d Pasta: '   + str(b['Pasta']  ||'\u2014') + '\n' +
-    '\ud83c\udf6e Desserts: '+ str(b['Desserts']||'\u2014') + '\n' +
     '\ud83e\udd64 Drinks: '  + str(b['Drinks'] ||'\u2014') + '\n' +
     (str(b['Lechon']||'').toLowerCase().includes('yes') ? '\ud83d\udc37 Lechon: Yes\n' : '') +
     (str(b['Addon Orders']||'').length > 2 && str(b['Addon Orders']) !== 'None'
