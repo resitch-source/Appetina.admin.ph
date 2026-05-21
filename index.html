@@ -665,7 +665,7 @@ function updateStats() {
   const tot  = allBookings.length;
   const nNew = allBookings.filter(b=>b['Status']==='NEW').length;
   const nConf= allBookings.filter(b=>b['Status']==='Confirmed').length;
-  const rev  = allBookings.filter(b=>b['Status']==='Confirmed'||b['Status']==='DONE').reduce((s,b)=>s+(+b['Total (₱)']||0),0);
+  const rev  = allBookings.filter(b=>b['Status']==='Confirmed').reduce((s,b)=>s+(+b['Total (₱)']||0),0);
   const bal  = allBookings.filter(b=>b['Status']!=='Cancelled').reduce((s,b)=>s+(+b['Balance (₱)']||0),0);
   safe('sTot',  tot);
   safe('sNew',  nNew);
