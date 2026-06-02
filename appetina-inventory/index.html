@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#8B4513"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Appetina IMS — Inventory Management</title>
+
+<!-- ZXing barcode scanner -->
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+<!-- Chart.js for analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+:root {
+  --brown:#8B4513; --gold:#C9A84C; --cream:#FFF8E7;
+  --bg:#fffdf9; --card:#ffffff; --border:#e8e0d0;
+  --text:#3D2B1F; --muted:#888; --success:#2E7D32;
+  --warning:#f57c00; --danger:#c62828; --info:#1565c0;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;
+  padding-bottom:80px;
+  overflow-x:hidden;
+}
+
+/* Top App Bar */
+.appbar{
+  background:linear-gradient(135deg,var(--brown),#a05a1f);
+  color:#fff;padding:0.9rem 1rem;position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 10px rgba(0,0,0,0.1);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.appbar-title{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;}
+.appbar-title small{font-size:0.7rem;opacity:0.85;font-family:'Inter',sans-serif;font-weight:400;display:block;margin-top:-2px;}
+.appbar-actions{display:flex;gap:0.5rem;}
+.icon-btn{
+  background:rgba(255,255,255,0.15);border:none;color:#fff;
+  width:38px;height:38px;border-radius:10px;font-size:1.1rem;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background 0.15s;
+}
+.icon-btn:hover{background:rgba(255,255,255,0.25);}
+
+/* Main content */
+.main{padding:1rem;max-width:1400px;margin:0 auto;}
+.screen{display:none;animation:fadeIn 0.25s;}
+.screen.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* Bottom Navigation */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#fff;border-top:1px solid var(--border);
+  display:flex;justify-content:space-around;
+  padding:0.4rem 0.2rem;z-index:100;
+  box-shadow:0 -2px 10px rgba(0,0,0,0.05);
+}
+.nav-item{
+  flex:1;background:none;border:none;cursor:pointer;
+  padding:0.55rem 0.3rem;display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:var(--muted);font-size:0.62rem;font-weight:600;font-family:inherit;
+  border-radius:8px;transition:color 0.15s;
+}
+.nav-item.active{color:var(--brown);}
+.nav-item-icon{font-size:1.3rem;}
+
+/* Dashboard cards */
+.dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-bottom:1rem;}
+.stat-card{
+  background:#fff;border-radius:12px;padding:1rem;border:1px solid var(--border);
+  cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;
+}
+.stat-card:active{transform:scale(0.97);}
+.stat-card-icon{font-size:1.5rem;margin-bottom:0.4rem;}
+.stat-card-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:600;margin-bottom:0.2rem;}
+.stat-card-value{font-size:1.5rem;font-weight:700;color:var(--brown);font-family:'Playfair Display',serif;}
+.stat-card-sub{font-size:0.7rem;color:var(--muted);margin-top:0.2rem;}
+
+/* Section */
+.section-title{
+  font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--brown);
+  margin:1.5rem 0 0.75rem;display:flex;align-items:center;justify-content:space-between;
+}
+.section-action{font-size:0.78rem;color:var(--info);font-weight:600;cursor:pointer;background:none;border:none;font-family:inherit;}
+
+/* Item card */
+.item-card{
+  background:#fff;border-radius:10px;padding:0.85rem 1rem;margin-bottom:0.5rem;
+  border:1px solid var(--border);cursor:pointer;transition:background 0.15s;
+  display:flex;align-items:center;gap:0.85rem;
+}
+.item-card:active{background:#fafafa;}
+.item-icon{
+  width:42px;height:42px;border-radius:10px;background:var(--cream);
+  display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;
+}
+.item-body{flex:1;min-width:0;}
+.item-name{font-weight:600;font-size:0.92rem;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.item-meta{font-size:0.72rem;color:var(--muted);}
+.item-qty{
+  background:var(--cream);color:var(--brown);font-weight:700;
+  padding:0.3rem 0.7rem;border-radius:8px;font-size:0.85rem;font-family:'Playfair Display',serif;
+}
+.item-qty.low{background:#fee;color:var(--danger);}
+.item-qty.out{background:var(--danger);color:#fff;}
+
+/* Buttons */
+.btn{
+  background:var(--brown);color:#fff;border:none;border-radius:10px;
+  padding:0.85rem 1.4rem;font-size:0.92rem;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:background 0.2s;display:inline-flex;align-items:center;gap:0.5rem;
+}
+.btn:hover{background:#6b3410;}
+.btn-secondary{background:#fff;color:var(--brown);border:1.5px solid var(--brown);}
+.btn-secondary:hover{background:var(--cream);}
+.btn-danger{background:var(--danger);}
+.btn-success{background:var(--success);}
+.btn-block{width:100%;justify-content:center;}
+.btn-sm{padding:0.5rem 1rem;font-size:0.8rem;}
+
+/* Forms */
+.form-row{margin-bottom:0.85rem;}
+.form-label{display:block;font-size:0.78rem;font-weight:600;color:var(--brown);margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em;}
+.form-input,.form-select,.form-textarea{
+  width:100%;border:1.5px solid var(--border);border-radius:10px;
+  padding:0.7rem 0.9rem;font-size:0.95rem;font-family:inherit;color:var(--text);
+  background:#fff;outline:none;transition:border-color 0.15s;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--gold);}
+.form-textarea{resize:vertical;min-height:80px;}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;}
+
+/* Modal */
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;
+  display:none;align-items:flex-end;justify-content:center;
+  animation:fadeIn 0.2s;
+}
+.modal.active{display:flex;}
+.modal-content{
+  background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:560px;
+  max-height:90vh;overflow-y:auto;animation:slideUp 0.25s;
+}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-header{
+  padding:1rem 1.25rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:#fff;z-index:5;
+}
+.modal-title{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--brown);}
+.modal-body{padding:1.25rem;}
+.modal-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted);}
+
+/* Scanner */
+.scanner-container{
+  position:relative;background:#000;border-radius:12px;overflow:hidden;
+  aspect-ratio:4/3;width:100%;max-width:480px;margin:0 auto;
+}
+.scanner-container video{width:100%;height:100%;object-fit:cover;}
+.scanner-overlay{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;
+}
+.scanner-frame{
+  width:75%;height:50%;border:3px solid var(--gold);border-radius:12px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,0.4);position:relative;
+}
+.scanner-line{
+  position:absolute;left:0;right:0;top:50%;height:2px;background:var(--gold);
+  animation:scanLine 2s ease-in-out infinite;
+  box-shadow:0 0 8px var(--gold);
+}
+@keyframes scanLine{0%,100%{top:10%;}50%{top:90%;}}
+.scanner-status{
+  text-align:center;color:#fff;margin-top:0.5rem;font-size:0.85rem;background:rgba(0,0,0,0.7);
+  padding:0.5rem;border-radius:8px;
+}
+
+/* Filter chips */
+.filter-row{display:flex;gap:0.5rem;overflow-x:auto;padding:0.25rem 0;margin-bottom:0.75rem;scrollbar-width:none;}
+.filter-row::-webkit-scrollbar{display:none;}
+.filter-chip{
+  background:#fff;border:1.5px solid var(--border);color:var(--text);
+  padding:0.4rem 0.85rem;border-radius:20px;font-size:0.78rem;font-weight:600;
+  cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;
+  transition:all 0.15s;
+}
+.filter-chip.active{background:var(--brown);color:#fff;border-color:var(--brown);}
+
+/* Search bar */
+.search-bar{
+  background:#fff;border:1.5px solid var(--border);border-radius:12px;
+  padding:0.65rem 0.9rem;font-size:0.95rem;width:100%;outline:none;
+  font-family:inherit;margin-bottom:0.75rem;
+}
+.search-bar:focus{border-color:var(--gold);}
+
+/* Empty state */
+.empty{text-align:center;padding:3rem 1rem;color:var(--muted);}
+.empty-icon{font-size:3rem;margin-bottom:0.75rem;opacity:0.4;}
+.empty-text{font-size:0.92rem;margin-bottom:1rem;}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:var(--brown);color:#fff;padding:0.75rem 1.25rem;border-radius:25px;
+  font-size:0.88rem;z-index:2000;box-shadow:0 4px 15px rgba(0,0,0,0.2);
+  animation:toastIn 0.3s,toastOut 0.3s 2.5s forwards;
+  font-weight:600;
+}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,20px);}to{opacity:1;transform:translate(-50%,0);}}
+@keyframes toastOut{to{opacity:0;transform:translate(-50%,20px);}}
+.toast.success{background:var(--success);}
+.toast.error{background:var(--danger);}
+
+/* FAB */
+.fab{
+  position:fixed;bottom:90px;right:1rem;width:56px;height:56px;
+  background:var(--gold);color:#fff;border:none;border-radius:50%;
+  font-size:1.6rem;cursor:pointer;z-index:50;
+  box-shadow:0 4px 12px rgba(201,168,76,0.4);
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* Badge */
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:700;
+}
+.badge-success{background:var(--success);color:#fff;}
+.badge-warning{background:var(--warning);color:#fff;}
+.badge-danger{background:var(--danger);color:#fff;}
+.badge-info{background:var(--info);color:#fff;}
+
+/* Rental row */
+.rental-row{
+  display:grid;grid-template-columns:1fr auto auto;gap:0.6rem;
+  padding:0.6rem;background:#fff;border:1px solid var(--border);border-radius:8px;
+  margin-bottom:0.4rem;align-items:center;
+}
+.qty-input{
+  width:65px;text-align:center;border:1.5px solid var(--border);border-radius:8px;
+  padding:0.4rem;font-size:0.9rem;font-weight:700;color:var(--brown);
+}
+.qty-btn{
+  background:var(--cream);border:none;width:30px;height:30px;border-radius:6px;
+  font-size:1.1rem;font-weight:700;color:var(--brown);cursor:pointer;
+}
+
+/* Tabs */
+.tabs{display:flex;gap:0.4rem;border-bottom:2px solid var(--border);margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{
+  background:none;border:none;padding:0.65rem 1rem;font-size:0.85rem;font-weight:600;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;
+  font-family:inherit;white-space:nowrap;
+}
+.tab.active{color:var(--brown);border-bottom-color:var(--gold);}
+
+/* Login overlay */
+.login-overlay{
+  position:fixed;inset:0;background:linear-gradient(135deg,var(--cream),#fff);
+  z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem;
+}
+.login-card{
+  background:#fff;border-radius:18px;padding:2rem 1.75rem;width:100%;max-width:380px;
+  box-shadow:0 20px 60px rgba(139,69,19,0.15);text-align:center;
+}
+.login-logo{font-size:3rem;margin-bottom:0.75rem;}
+.login-card h1{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--brown);margin-bottom:0.4rem;}
+.login-card p{color:var(--muted);font-size:0.85rem;margin-bottom:1.5rem;}
+.login-err{color:var(--danger);font-size:0.82rem;margin-top:0.5rem;min-height:1.2rem;}
+
+/* Loading spinner */
+.spinner{
+  display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;
+  vertical-align:middle;margin-right:6px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(min-width:768px){
+  .dash-grid{grid-template-columns:repeat(4,1fr);}
+  body{padding-bottom:0;}
+  .bottom-nav{
+    position:sticky;top:60px;bottom:auto;flex-direction:column;
+    width:240px;float:left;height:calc(100vh - 60px);border-top:none;
+    border-right:1px solid var(--border);padding:1rem 0.5rem;
+  }
+  .nav-item{flex:none;flex-direction:row;justify-content:flex-start;gap:0.6rem;padding:0.75rem 1rem;font-size:0.85rem;}
+  .nav-item-icon{font-size:1.1rem;}
+  .main{margin-left:240px;}
+  .fab{bottom:1.5rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">📦</div>
+    <h1>Appetina IMS</h1>
+    <p>Inventory Management System</p>
+    <input type="password" class="form-input" id="passInput" placeholder="Enter admin password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="margin-bottom:0.75rem;"/>
+    <button class="btn btn-block" onclick="doLogin()" id="loginBtn">🔓 Sign In</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- APP CONTAINER -->
+<div id="app" style="display:none;">
+
+  <!-- TOP APP BAR -->
+  <div class="appbar">
+    <div class="appbar-title">
+      📦 Appetina IMS
+      <small id="userBadge">Inventory Dashboard</small>
+    </div>
+    <div class="appbar-actions">
+      <button class="icon-btn" onclick="openScanner()" title="Quick Scan">📷</button>
+      <button class="icon-btn" onclick="logout()" title="Logout">🚪</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="screen active" id="screen-dashboard">
+      <h2 class="section-title">📊 Overview</h2>
+      <div class="dash-grid">
+        <div class="stat-card" onclick="navigate('inventory')">
+          <div class="stat-card-icon">📦</div>
+          <div class="stat-card-label">Total Items</div>
+          <div class="stat-card-value" id="statItems">—</div>
+          <div class="stat-card-sub" id="statItemsSub">in inventory</div>
+        </div>
+        <div class="stat-card" onclick="navigate('inventory',{filter:'low'})">
+          <div class="stat-card-icon">⚠️</div>
+          <div class="stat-card-label">Low Stock</div>
+          <div class="stat-card-value" id="statLow" style="color:var(--warning);">—</div>
+          <div class="stat-card-sub">need restocking</div>
+        </div>
+        <div class="stat-card" onclick="navigate('events')">
+          <div class="stat-card-icon">🎉</div>
+          <div class="stat-card-label">Active Events</div>
+          <div class="stat-card-value" id="statEvents" style="color:var(--info);">—</div>
+          <div class="stat-card-sub">upcoming</div>
+        </div>
+        <div class="stat-card" onclick="navigate('rentals')">
+          <div class="stat-card-icon">🪑</div>
+          <div class="stat-card-label">Rentals Out</div>
+          <div class="stat-card-value" id="statRentals" style="color:var(--gold);">—</div>
+          <div class="stat-card-sub">deployed</div>
+        </div>
+      </div>
+
+      <h2 class="section-title">⚡ Quick Actions
+      </h2>
+      <div class="dash-grid">
+        <div class="stat-card" onclick="openScanner()">
+          <div class="stat-card-icon">📷</div>
+          <div class="stat-card-label">Scan</div>
+          <div class="stat-card-sub">Barcode / RFID</div>
+        </div>
+        <div class="stat-card" onclick="openAddItemModal()">
+          <div class="stat-card-icon">➕</div>
+          <div class="stat-card-label">Add Item</div>
+          <div class="stat-card-sub">New inventory</div>
+        </div>
+        <div class="stat-card" onclick="navigate('procurement')">
+          <div class="stat-card-icon">🛒</div>
+          <div class="stat-card-label">Order Stock</div>
+          <div class="stat-card-sub">Purchase orders</div>
+        </div>
+        <div class="stat-card" onclick="navigate('analytics')">
+          <div class="stat-card-icon">📈</div>
+          <div class="stat-card-label">Reports</div>
+          <div class="stat-card-sub">Analytics</div>
+        </div>
+      </div>
+
+      <h2 class="section-title">🔔 Low Stock Alerts</h2>
+      <div id="lowStockList"></div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div class="screen" id="screen-inventory">
+      <button class="btn btn-secondary btn-sm" onclick="navigate('settings')" style="margin-bottom:1rem;">← Back to More</button>
+      <h2 class="section-title">📦 Inventory
+        <button class="section-action" onclick="openAddItemModal()">+ Add Item</button>
+      </h2>
+      <input type="text" class="search-bar" placeholder="🔍 Search by name, SKU, barcode..." id="invSearch" oninput="renderInventory()"/>
+      <div class="filter-row" id="invFilters">
+        <button class="filter-chip active" data-filter="all">All</button>
+        <button class="filter-chip" data-filter="ingredients">🥘 Ingredients</button>
+        <button class="filter-chip" data-filter="equipment">🍳 Equipment</button>
+        <button class="filter-chip" data-filter="furniture">🪑 Furniture</button>
+        <button class="filter-chip" data-filter="serveware">🍽️ Serveware</button>
+        <button class="filter-chip" data-filter="linens">📜 Linens</button>
+        <button class="filter-chip" data-filter="low">⚠️ Low Stock</button>
+      </div>
+      <div id="inventoryList"></div>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="screen" id="screen-events">
+      <button class="btn btn-secondary btn-sm" onclick="navigate('settings')" style="margin-bottom:1rem;">← Back to More</button>
+      <h2 class="section-title">🎉 Events & Production</h2>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">Synced from Appetina Bookings (Confirmed status)</p>
+      <div class="tabs">
+        <button class="tab active" data-tab="upcoming" onclick="filterEvents('upcoming')">Upcoming</button>
+        <button class="tab" data-tab="today" onclick="filterEvents('today')">Today</button>
+        <button class="tab" data-tab="completed" onclick="filterEvents('completed')">Completed</button>
+      </div>
+      <div id="eventsList"></div>
+    </div>
+
+    <!-- RENTALS -->
+    <div class="screen" id="screen-rentals">
+      <button class="btn btn-secondary btn-sm" onclick="navigate('settings')" style="margin-bottom:1rem;">← Back to More</button>
+      <h2 class="section-title">🪑 Rentals Movement
+        <button class="section-action" onclick="openNewRentalModal()">+ New Out</button>
+      </h2>
+      <div class="tabs">
+        <button class="tab active" data-tab="out" onclick="filterRentals('out')">Currently Out</button>
+        <button class="tab" data-tab="returned" onclick="filterRentals('returned')">Returned</button>
+        <button class="tab" data-tab="overdue" onclick="filterRentals('overdue')">⚠️ Overdue</button>
+      </div>
+      <div id="rentalsList"></div>
+    </div>
+
+    <!-- RECIPES & MENU -->
+    <div class="screen" id="screen-recipes">
+      <button class="btn btn-secondary btn-sm" onclick="navigate('settings')" style="margin-bottom:1rem;">← Back to More</button>
+      <h2 class="section-title">🍽️ Recipes & Menu Costing</h2>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">Ingredients required per dish and packages</p>
+      <input type="text" class="search-bar" placeholder="🔍 Search recipes..." id="recipeSearch" oninput="renderRecipes()"/>
+      <div id="recipesList"></div>
+    </div>
+
+    <!-- PROCUREMENT -->
+    <div class="screen" id="screen-procurement">
+      <button class="btn btn-secondary btn-sm" onclick="navigate('settings')" style="margin-bottom:1rem;">← Back to More</button>
+      <h2 class="section-title">🛒 Procurement
+        <button class="section-action" onclick="openPurchaseOrderModal()">+ New PO</button>
+      </h2>
+      <div id="procurementList"></div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="screen" id="screen-analytics">
+      <button class="btn btn-secondary btn-sm" onclick="navigate('settings')" style="margin-bottom:1rem;">← Back to More</button>
+      <h2 class="section-title">📈 Analytics</h2>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem;">
+        <h3 style="font-size:0.9rem;color:var(--brown);margin-bottom:0.75rem;">Stock Usage (Last 30 Days)</h3>
+        <canvas id="usageChart" style="max-height:250px;"></canvas>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem;">
+        <h3 style="font-size:0.9rem;color:var(--brown);margin-bottom:0.75rem;">Inventory Value by Category</h3>
+        <canvas id="categoryChart" style="max-height:250px;"></canvas>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;">
+        <h3 style="font-size:0.9rem;color:var(--brown);margin-bottom:0.75rem;">Top Consumed Items</h3>
+        <div id="topConsumedList"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS / MORE -->
+    <div class="screen" id="screen-settings">
+      <h2 class="section-title">☰ All Modules</h2>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">Tap any module to open it</p>
+
+      <div class="dash-grid" style="grid-template-columns:repeat(2,1fr);">
+        <div class="stat-card" onclick="navigate('inventory')">
+          <div class="stat-card-icon">📦</div>
+          <div class="stat-card-label">Inventory</div>
+          <div class="stat-card-value" style="font-size:1rem;" id="modInventoryCount">—</div>
+          <div class="stat-card-sub">items tracked</div>
+        </div>
+        <div class="stat-card" onclick="navigate('events')">
+          <div class="stat-card-icon">🎉</div>
+          <div class="stat-card-label">Events</div>
+          <div class="stat-card-value" style="font-size:1rem;" id="modEventsCount">—</div>
+          <div class="stat-card-sub">production</div>
+        </div>
+        <div class="stat-card" onclick="navigate('rentals')">
+          <div class="stat-card-icon">🪑</div>
+          <div class="stat-card-label">Rentals</div>
+          <div class="stat-card-value" style="font-size:1rem;" id="modRentalsCount">—</div>
+          <div class="stat-card-sub">checked out</div>
+        </div>
+        <div class="stat-card" onclick="navigate('recipes')">
+          <div class="stat-card-icon">🍽️</div>
+          <div class="stat-card-label">Recipes</div>
+          <div class="stat-card-value" style="font-size:1rem;" id="modRecipesCount">—</div>
+          <div class="stat-card-sub">menu costing</div>
+        </div>
+        <div class="stat-card" onclick="navigate('procurement')">
+          <div class="stat-card-icon">🛒</div>
+          <div class="stat-card-label">Procurement</div>
+          <div class="stat-card-value" style="font-size:1rem;" id="modPOCount">—</div>
+          <div class="stat-card-sub">purchase orders</div>
+        </div>
+        <div class="stat-card" onclick="navigate('analytics')">
+          <div class="stat-card-icon">📈</div>
+          <div class="stat-card-label">Analytics</div>
+          <div class="stat-card-value" style="font-size:1rem;">📊</div>
+          <div class="stat-card-sub">reports</div>
+        </div>
+      </div>
+
+      <h2 class="section-title">⚙️ Configuration</h2>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;font-weight:600;">Categories & Vendors</div>
+        <button class="btn btn-secondary btn-block" style="margin-top:0.5rem;" onclick="openCategoriesModal()">📁 Manage Categories</button>
+        <button class="btn btn-secondary btn-block" style="margin-top:0.5rem;" onclick="openVendorsModal()">🏪 Manage Vendors</button>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;font-weight:600;">Data Management</div>
+        <button class="btn btn-secondary btn-block" style="margin-top:0.5rem;" onclick="exportInventoryCSV()">📥 Export Inventory CSV</button>
+        <button class="btn btn-secondary btn-block" style="margin-top:0.5rem;" onclick="syncWithSheets()">🔄 Sync with Google Sheets</button>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;font-weight:600;">Account</div>
+        <button class="btn btn-danger btn-block" style="margin-top:0.5rem;" onclick="logout()">🚪 Sign Out</button>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;">
+        <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;font-weight:600;">About</div>
+        <div style="font-size:0.85rem;color:var(--text);">Appetina IMS v1.0</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Mobile-first inventory management</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+      <div class="nav-item-icon">🏠</div>Home
+    </button>
+    <button class="nav-item" onclick="openScanner()" id="nav-scan">
+      <div class="nav-item-icon">📷</div>Scan
+    </button>
+    <button class="nav-item" onclick="navigate('settings')" id="nav-settings">
+      <div class="nav-item-icon">☰</div>More
+    </button>
+  </nav>
+
+  <button class="fab" onclick="openScanner()" id="fab" title="Quick scan">📷</button>
+</div>
+
+<!-- SCANNER MODAL -->
+<div class="modal" id="scannerModal">
+  <div class="modal-content" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-title">📷 Scan Item</div>
+      <button class="modal-close" onclick="closeScanner()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-row" style="margin-bottom:0.85rem;">
+        <button class="filter-chip active" data-mode="camera" onclick="setScanMode('camera')">📷 Camera</button>
+        <button class="filter-chip" data-mode="hid" onclick="setScanMode('hid')">⌨️ USB Scanner</button>
+        <button class="filter-chip" data-mode="manual" onclick="setScanMode('manual')">⌨️ Manual</button>
+      </div>
+
+      <div id="scanCameraMode">
+        <div class="scanner-container">
+          <video id="scannerVideo" playsinline></video>
+          <div class="scanner-overlay">
+            <div class="scanner-frame"><div class="scanner-line"></div></div>
+          </div>
+        </div>
+        <div class="scanner-status" id="scanStatus">Point camera at barcode or QR</div>
+      </div>
+
+      <div id="scanHidMode" style="display:none;">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem;text-align:center;">Connect your USB barcode scanner or RFID reader to your device. Scan the item — the code will appear below automatically.</p>
+        <input type="text" class="form-input" id="hidInput" placeholder="Waiting for scanner input..." autofocus style="text-align:center;font-size:1.1rem;letter-spacing:0.1em;"/>
+        <p style="font-size:0.75rem;color:var(--muted);text-align:center;margin-top:0.5rem;">✓ Compatible with all HID keyboard-emulation barcode scanners and RFID readers</p>
+      </div>
+
+      <div id="scanManualMode" style="display:none;">
+        <label class="form-label">Enter Barcode / SKU</label>
+        <input type="text" class="form-input" id="manualInput" placeholder="Type or paste code"/>
+        <button class="btn btn-block" style="margin-top:0.75rem;" onclick="processCode(document.getElementById('manualInput').value)">🔍 Look Up</button>
+      </div>
+
+      <div id="scanResult" style="margin-top:1rem;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT ITEM MODAL -->
+<div class="modal" id="itemModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="itemModalTitle">➕ Add Item</div>
+      <button class="modal-close" onclick="closeModal('itemModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Item Name *</label>
+        <input type="text" class="form-input" id="itemName" placeholder="e.g. Round Table 60in"/>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">SKU / Code</label>
+          <input type="text" class="form-input" id="itemSku" placeholder="AUTO"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Category *</label>
+          <select class="form-select" id="itemCategory">
+            <option value="ingredients">🥘 Ingredients</option>
+            <option value="equipment">🍳 Equipment</option>
+            <option value="furniture">🪑 Furniture</option>
+            <option value="serveware">🍽️ Serveware</option>
+            <option value="linens">📜 Linens</option>
+            <option value="consumables">🧻 Consumables</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">Barcode</label>
+          <input type="text" class="form-input" id="itemBarcode" placeholder="Scan or enter"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">RFID Tag</label>
+          <input type="text" class="form-input" id="itemRfid" placeholder="Optional"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">Quantity *</label>
+          <input type="number" class="form-input" id="itemQty" min="0" value="0"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Unit</label>
+          <input type="text" class="form-input" id="itemUnit" placeholder="pcs, kg, L"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">Low Stock Alert</label>
+          <input type="number" class="form-input" id="itemMinStock" min="0" value="5"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Unit Cost (₱)</label>
+          <input type="number" class="form-input" id="itemCost" min="0" step="0.01" value="0"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Vendor / Supplier</label>
+        <input type="text" class="form-input" id="itemVendor" placeholder="Optional"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Storage Location</label>
+        <input type="text" class="form-input" id="itemLocation" placeholder="e.g. Warehouse A, Shelf 3"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="itemNotes" placeholder="Additional notes..."></textarea>
+      </div>
+
+      <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('itemModal')">Cancel</button>
+        <button class="btn" style="flex:2;" onclick="saveItem()">💾 Save Item</button>
+      </div>
+      <button class="btn btn-danger btn-block" id="deleteItemBtn" style="margin-top:0.5rem;display:none;" onclick="deleteItem()">🗑️ Delete Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENTAL MODAL -->
+<div class="modal" id="rentalModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">🪑 New Rental Out</div>
+      <button class="modal-close" onclick="closeModal('rentalModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Event / Booking Reference</label>
+        <input type="text" class="form-input" id="rentalEventRef" placeholder="e.g. APT-1234"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Client Name</label>
+        <input type="text" class="form-input" id="rentalClient"/>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">Date Out</label>
+          <input type="date" class="form-input" id="rentalDateOut"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Expected Return</label>
+          <input type="date" class="form-input" id="rentalDateReturn"/>
+        </div>
+      </div>
+
+      <div class="section-title" style="font-size:0.9rem;">Items to Rent Out</div>
+      <div id="rentalItemsList"></div>
+      <button class="btn btn-secondary btn-sm" onclick="addRentalItem()" style="margin-top:0.5rem;">+ Add Item</button>
+
+      <div style="display:flex;gap:0.5rem;margin-top:1.5rem;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('rentalModal')">Cancel</button>
+        <button class="btn" style="flex:2;" onclick="saveRental()">📤 Check Out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EVENT DETAIL MODAL -->
+<div class="modal" id="eventModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="eventModalTitle">Event Details</div>
+      <button class="modal-close" onclick="closeModal('eventModal')">✕</button>
+    </div>
+    <div class="modal-body" id="eventModalBody"></div>
+  </div>
+</div>
+
+<!-- RECIPE DETAIL MODAL -->
+<div class="modal" id="recipeModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="recipeModalTitle">Recipe Details</div>
+      <button class="modal-close" onclick="closeModal('recipeModal')">✕</button>
+    </div>
+    <div class="modal-body" id="recipeModalBody"></div>
+  </div>
+</div>
+
+<script src="ims.js"></script>
+</body>
+</html>
