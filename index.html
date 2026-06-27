@@ -1949,15 +1949,71 @@ let _hidBuffer = '';
 let _hidTimer = null;
 
 function loadInventory() {
-  try {
-    _inventory = JSON.parse(localStorage.getItem('appetina_ims_inventory') || '[]');
-  } catch(e) { _inventory = []; }
-  if (_inventory.length === 0) seedInventory();
-  renderInventory();
+  const list = document.getElementById('inventoryList');
+  if (list) list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);"><div class="spinner-lg"></div>Loading inventory...</div>';
+
+  // Try Sheets first; fall back to localStorage cache if offline/unavailable
+  fetch(SCRIPT_URL + '?action=cfInvList&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now())
+    .then(r => r.json())
+    .then(json => {
+      if (json.success && Array.isArray(json.items)) {
+        // Map sheet rows (PascalCase headers) -> internal lowercase shape
+        _inventory = json.items.map(cfRowToItem);
+        // If the sheet is empty but we have local seed data, offer migration
+        if (_inventory.length === 0) {
+          let cached = [];
+          try { cached = JSON.parse(localStorage.getItem('appetina_ims_inventory') || '[]'); } catch(e) {}
+          if (cached.length === 0) { seedInventory(); cached = _inventory; }
+          // Push seed/cache up to Sheets once
+          migrateInventoryToSheets(cached);
+        }
+        cacheInventoryLocal();
+        renderInventory();
+      } else {
+        throw new Error(json.error || 'Bad response');
+      }
+    })
+    .catch(() => {
+      // Offline / backend not deployed yet: use local cache
+      try { _inventory = JSON.parse(localStorage.getItem('appetina_ims_inventory') || '[]'); } catch(e) { _inventory = []; }
+      if (_inventory.length === 0) seedInventory();
+      renderInventory();
+      showToast('Offline mode — using cached inventory', 'red');
+    });
 }
 
-function saveInventory() {
+// Convert a CF_Inventory sheet row into the internal item shape used by the UI
+function cfRowToItem(r) {
+  return {
+    id: r.ItemID, sku: r.SKU, name: r.Name, category: r.Category,
+    barcode: r.Barcode, rfid: r.RFID,
+    qty: Number(r.Qty) || 0, unit: r.Unit,
+    minStock: Number(r.MinStock) || 0, cost: Number(r.Cost) || 0,
+    location: r.Location, vendor: r.Vendor
+  };
+}
+
+// Keep a local copy for offline viewing
+function cacheInventoryLocal() {
   try { localStorage.setItem('appetina_ims_inventory', JSON.stringify(_inventory)); } catch(e) {}
+}
+
+// Legacy name kept so older callers still work — now just caches locally.
+function saveInventory() { cacheInventoryLocal(); }
+
+// One-time bulk upload of existing local/seed items into the sheet
+function migrateInventoryToSheets(items) {
+  if (!items || !items.length) return;
+  fetch(SCRIPT_URL + '?action=cfInvSeed&token=' + encodeURIComponent(sessionToken)
+        + '&items=' + encodeURIComponent(JSON.stringify(items)) + '&ts=' + Date.now())
+    .then(r => r.json())
+    .then(json => {
+      if (json.success && json.added > 0) {
+        showToast('✓ Migrated ' + json.added + ' items to Sheets', 'gold');
+        loadInventory();
+      }
+    })
+    .catch(() => {});
 }
 
 function seedInventory() {
@@ -2089,7 +2145,7 @@ function saveInvItem() {
   const name = document.getElementById('invName').value.trim();
   if (!name) { showToast('Please enter item name', 'red'); return; }
   const data = {
-    id: _editingInv || ('itm_'+Date.now()),
+    id: _editingInv || '',   // blank => backend assigns ITM-000001
     name: name,
     sku: document.getElementById('invSku').value.trim(),
     category: document.getElementById('invCategory').value,
@@ -2102,27 +2158,45 @@ function saveInvItem() {
     location: document.getElementById('invLocation').value.trim(),
     vendor: document.getElementById('invVendor').value.trim()
   };
+
+  // Optimistic UI update
   if (_editingInv) {
     const idx = _inventory.findIndex(i=>i.id===_editingInv);
-    if (idx>=0) _inventory[idx] = data;
-    showToast('✓ Item updated', 'gold');
+    if (idx>=0) _inventory[idx] = { ...data, id:_editingInv };
   } else {
+    data.id = 'tmp_'+Date.now();
     _inventory.push(data);
-    showToast('✓ Item added', 'gold');
   }
-  saveInventory();
+  cacheInventoryLocal();
   closeInvModal();
   renderInventory();
+
+  // Persist to Sheets
+  const params = new URLSearchParams({ action:'cfInvSave', token: sessionToken });
+  Object.keys(data).forEach(k => { if (k!=='id' || _editingInv) params.append(k, data[k]); });
+  if (_editingInv) params.set('id', _editingInv);
+  fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now())
+    .then(r=>r.json())
+    .then(json=>{
+      if (json.success) { showToast(_editingInv?'✓ Item updated':'✓ Item added','gold'); loadInventory(); }
+      else throw new Error(json.error||'Save failed');
+    })
+    .catch(e=>showToast('Saved locally (sync failed): '+e.message,'red'));
 }
 
 function deleteInvItem() {
   if (!_editingInv) return;
   if (!confirm('Delete this item permanently?')) return;
-  _inventory = _inventory.filter(i=>i.id!==_editingInv);
-  saveInventory();
+  const id = _editingInv;
+  _inventory = _inventory.filter(i=>i.id!==id);
+  cacheInventoryLocal();
   closeInvModal();
-  showToast('Item deleted', 'gold');
   renderInventory();
+  fetch(SCRIPT_URL + '?action=cfInvDelete&token=' + encodeURIComponent(sessionToken)
+        + '&id=' + encodeURIComponent(id) + '&ts=' + Date.now())
+    .then(r=>r.json())
+    .then(json=> json.success ? showToast('Item deleted','gold') : showToast('Delete failed on server','red'))
+    .catch(()=>showToast('Deleted locally (sync failed)','red'));
 }
 
 // -- Scanner --
@@ -2214,12 +2288,20 @@ function processScanCode(code) {
 function quickAdjustInv(id, delta) {
   const item = _inventory.find(i=>i.id===id);
   if (!item) return;
+  // Optimistic local update
   item.qty = Math.max(0,(+item.qty||0)+delta);
-  saveInventory();
+  cacheInventoryLocal();
   showToast(delta>0?'✓ +'+delta:'✓ '+delta, 'gold');
   document.getElementById('scanResult').innerHTML='';
   if (_scanMode==='camera') startScanCamera();
   renderInventory();
+  // Atomic server-side adjust (LockService-protected) — skip for un-synced temp items
+  if (String(id).indexOf('tmp_')===0) return;
+  fetch(SCRIPT_URL + '?action=cfInvAdjust&token=' + encodeURIComponent(sessionToken)
+        + '&id=' + encodeURIComponent(id) + '&delta=' + delta + '&ts=' + Date.now())
+    .then(r=>r.json())
+    .then(json=>{ if(json.success && typeof json.qty==='number'){ item.qty=json.qty; cacheInventoryLocal(); renderInventory(); } })
+    .catch(()=>{});
 }
 
 // -- ASSET MANAGEMENT -----------------------------------------
