@@ -533,6 +533,25 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   body.sb-collapsed .sb-search{display:block;}
 }
 /* ================== end APP SHELL v3 ================== */
+
+/* ── Sync status bar (Bookings) ── */
+#syncBar{
+  display:flex;align-items:center;gap:0.5rem;margin-bottom:0.9rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:0.45rem 0.8rem;font-size:0.76rem;color:var(--muted);
+}
+#syncDot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+#syncDot.loading{background:#f4a93b;animation:sbPulse 1s infinite;}
+#syncDot.ok{background:#7cb342;}
+#syncDot.error{background:#ef5350;}
+@keyframes sbPulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+#syncText{font-weight:600;color:var(--text);}
+#syncTime{margin-left:auto;font-size:0.68rem;}
+#syncBtn{
+  background:var(--card);border:1px solid var(--border2);color:var(--gold);border-radius:6px;
+  padding:0.25rem 0.6rem;font-size:0.7rem;cursor:pointer;font-family:inherit;flex-shrink:0;
+}
+#payBalChip{font-size:0.78rem;font-weight:800;padding:0.3rem 0.7rem;border-radius:8px;white-space:nowrap;}
 </style>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -681,6 +700,12 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   </div>
 
   <div id="bookingsView" class="main" style="display:none;">
+    <div id="syncBar">
+      <span id="syncDot"></span>
+      <span id="syncText">Ready</span>
+      <span id="syncTime"></span>
+      <button id="syncBtn" onclick="loadBookings()" title="Sync now">↻ Sync</button>
+    </div>
     <div class="stats-row" id="statsRow">
       <div class="stat-card"><div class="stat-label">Total Bookings</div><div class="stat-value" id="sTot">—</div></div>
       <div class="stat-card"><div class="stat-label">New</div><div class="stat-value" id="sNew" style="color:#4fa3ff">—</div></div>
@@ -1338,7 +1363,11 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <div class="exec-section" style="max-width:560px;">
         <div class="exec-section-title">Collect Payment on a Booking</div>
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-          <input type="text" class="entry-input" id="posRef" placeholder="Booking reference (e.g. APT-2024-0042)" style="flex:1;"/>
+          <div id="posRefWrap" style="flex:1;position:relative;">
+            <input type="text" class="entry-input" id="posRefSearch" placeholder="🔍 Type client name or reference…" autocomplete="off"
+                   oninput="posRefFilter(this.value)" onfocus="posRefFilter(this.value)"/>
+            <div id="posRefDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;background:var(--surface);border:1px solid var(--gold);border-radius:10px;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.5);"></div>
+          </div>
           <button class="refresh-btn" style="background:var(--brown);color:#fff;border-color:var(--brown);" onclick="posLookup()">🔍 Find</button>
         </div>
         <div id="posBookingInfo"></div>
@@ -1350,7 +1379,11 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <div class="exec-section" style="max-width:620px;">
         <div class="exec-section-title">Direct Sale</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
-          <div><label class="entry-label">Customer (optional)</label><input type="text" class="entry-input" id="posCustomer" placeholder="Walk-in"/></div>
+          <div><label class="entry-label">Customer</label>
+            <input type="text" class="entry-input" id="posCustomer" list="posClientList" placeholder="Pick a client or type a new name" autocomplete="off"/>
+            <datalist id="posClientList"></datalist>
+            <div style="font-size:0.64rem;color:var(--muted);margin-top:0.25rem;">New names are saved to your Clients sheet automatically.</div>
+          </div>
           <div><label class="entry-label">Payment Method</label>
             <select class="entry-input" id="posSaleMethod"><option>Cash</option><option>GCash</option><option>Bank Transfer</option><option>Card</option></select></div>
         </div>
@@ -1966,6 +1999,16 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
         Messenger
       </a>
     </div>
+    <div class="status-row" id="payRow" style="border-top:1px dashed var(--border);">
+      <label>Payment:</label>
+      <span id="payBalChip"></span>
+      <input type="number" class="status-select" id="payAmtInput" placeholder="₱ amount" min="0" step="0.01" style="width:120px;"/>
+      <select class="status-select" id="payMethodSel">
+        <option>Cash</option><option>GCash</option><option>Bank Transfer</option><option>Card</option>
+      </select>
+      <button class="save-status-btn" id="payRecordBtn" onclick="recordModalPayment(false)">💰 Record</button>
+      <button class="save-status-btn" id="fullyPaidBtn" onclick="recordModalPayment(true)" style="background:#7cb342;border-color:#7cb342;">✓ Fully Paid</button>
+    </div>
   </div>
 </div>
 
@@ -2115,6 +2158,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // -- LOAD BOOKINGS ----------------------------------------------
 async function loadBookings() {
+  setSync('loading', 'Syncing bookings…');
   const tbody = document.getElementById('tableBody');
   if (tbody) tbody.innerHTML = '<tr><td colspan="11"><div class="loading-state"><div class="spinner-lg"></div>Loading bookings...</div></td></tr>';
   try {
@@ -2126,12 +2170,14 @@ async function loadBookings() {
   } catch(e) {
     if (tbody) tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">\u26a0\ufe0f</div>Could not load bookings.<br><small>' + e.message + '</small></div></td></tr>';
     showToast('Error loading bookings: ' + e.message, 'red');
+    setSync('error', 'Sync failed — tap Sync to retry');
     return; // stop here -- don't call updateStats/applyFilters
   }
   // Data loaded -- update UI separately so any UI error doesn't show "could not load"
   try { updateStats(); } catch(e) { console.warn('updateStats error:', e); }
   try { applyFilters(); } catch(e) { console.warn('applyFilters error:', e); }
   showToast('OK Loaded ' + allBookings.length + ' bookings', 'gold');
+  setSync('ok', allBookings.length + ' bookings in sync');
 }
 
 // -- HELPERS -- format Google Sheets ISO dates/times
@@ -2346,6 +2392,7 @@ function openModal(idx) {
 
   document.getElementById('modalTitle').textContent = b['Booking Ref'] + ' -- ' + b['Client Name'];
   document.getElementById('statusSelect').value = b['Status'] || 'NEW';
+  renderModalPayStrip(b);
 
   const total= +b['Total (₱)'] || 0;
   const down = +b['Downpayment (₱)'] || 0;
@@ -2503,6 +2550,7 @@ async function saveStatus() {
 
     // Update the status badge in modal title area
     showToast('OK Status updated to ' + status, 'gold');
+    setSync('ok', 'Status saved to sheet');
 
   } catch(e) {
     console.error('saveStatus error:', e);
@@ -3392,8 +3440,11 @@ let _posBooking = null;
 let _posLineRows = [];
 let _posSales = [];
 
-function initPOS() {
+async function initPOS() {
   setPOSMode('payment', document.getElementById('posMode-payment'));
+  // Ensure bookings are loaded for the searchable dropdown
+  if (!allBookings || !allBookings.length) { try { await loadBookings(); } catch(e){} }
+  buildPosClientPool();
 }
 
 function setPOSMode(mode, btn) {
@@ -3403,14 +3454,89 @@ function setPOSMode(mode, btn) {
   document.getElementById('posPaymentPane').style.display = mode==='payment' ? 'block' : 'none';
   document.getElementById('posSalePane').style.display = mode==='sale' ? 'block' : 'none';
   document.getElementById('posHistoryPane').style.display = mode==='history' ? 'block' : 'none';
-  if (mode==='sale' && _posLineRows.length===0) { addPOSLine(); }
+  if (mode==='sale') { if (_posLineRows.length===0) addPOSLine(); buildPosClientPool(); }
   if (mode==='history') loadPOSHistory();
 }
 
+// ── Client name pool: bookings + Clients sheet → datalist + payment search ──
+let _posSelRef = '';
+let _cfClientNames = null; // fetched once per session
+
+function buildPosClientPool() {
+  const names = new Set();
+  (allBookings||[]).forEach(b => { const n=(b['Client Name']||'').trim(); if (n) names.add(n); });
+  const fill = () => {
+    const dl = document.getElementById('posClientList');
+    if (dl) dl.innerHTML = [...names].sort().map(n=>`<option value="${escapeHtml(n)}">`).join('');
+  };
+  if (_cfClientNames === null) {
+    _cfClientNames = []; // mark in-flight
+    fetch(SCRIPT_URL + '?action=cfGetClients&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now())
+      .then(r=>r.json()).then(j=>{
+        (j.clients||[]).forEach(c => { const n=(c.FullName||c.fullName||'').trim(); if (n) { names.add(n); _cfClientNames.push(n); } });
+        fill();
+      }).catch(()=>{ fill(); });
+  } else {
+    _cfClientNames.forEach(n=>names.add(n));
+  }
+  fill();
+  window._posClientNames = names;
+}
+
+// ── Booking Payment: type-and-search dropdown ──
+function posRefFilter(q) {
+  const drop = document.getElementById('posRefDrop');
+  q = (q||'').trim().toLowerCase();
+  _posSelRef = ''; // typing invalidates prior selection
+  const list = (allBookings||[])
+    .filter(b => (b['Status']||'NEW') !== 'Cancelled')
+    .map(b => ({
+      ref: b['Booking Ref']||'', client: b['Client Name']||'',
+      date: b['Event Date']||'', status: b['Status']||'NEW',
+      bal: +b['Balance (\u20b1)']||0
+    }))
+    .filter(x => !q || x.client.toLowerCase().includes(q) || x.ref.toLowerCase().includes(q))
+    .sort((a,b) => (b.bal>0)-(a.bal>0) || String(b.date).localeCompare(String(a.date)))
+    .slice(0, 8);
+  if (!list.length) {
+    drop.innerHTML = '<div style="padding:0.7rem;font-size:0.78rem;color:var(--muted);">No matching bookings.</div>';
+  } else {
+    drop.innerHTML = list.map(x => `
+      <div onclick="selectPosRef('${x.ref.replace(/'/g,"\\'")}', '${x.client.replace(/'/g,"\\'")}')"
+           style="padding:0.6rem 0.8rem;cursor:pointer;border-bottom:1px solid var(--border);"
+           onmouseover="this.style.background='var(--card)'" onmouseout="this.style.background='transparent'">
+        <div style="display:flex;justify-content:space-between;gap:0.5rem;">
+          <span style="font-weight:700;font-size:0.84rem;">${escapeHtml(x.client||'—')}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:${x.bal>0?'#f4a93b':'#7cb342'};">${x.bal>0?'\u20b1'+x.bal.toLocaleString()+' due':'paid'}</span>
+        </div>
+        <div style="font-size:0.68rem;color:var(--muted);">${escapeHtml(x.ref)} · ${escapeHtml(String(x.date))} · ${escapeHtml(x.status)}</div>
+      </div>`).join('');
+  }
+  drop.style.display = 'block';
+}
+
+function selectPosRef(ref, client) {
+  _posSelRef = ref;
+  document.getElementById('posRefSearch').value = client + ' — ' + ref;
+  document.getElementById('posRefDrop').style.display = 'none';
+  posLookup(); // auto-load the balance card
+}
+
+document.addEventListener('click', function(e){
+  const wrap = document.getElementById('posRefWrap');
+  const drop = document.getElementById('posRefDrop');
+  if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
+});
+
 // ---- Booking payment ----
 async function posLookup() {
-  const ref = document.getElementById('posRef').value.trim();
-  if (!ref) { showToast('Enter a booking reference', 'red'); return; }
+  // Prefer the picked booking; fall back to a typed reference
+  let ref = _posSelRef;
+  if (!ref) {
+    const raw = document.getElementById('posRefSearch').value.trim();
+    ref = raw.includes(' — ') ? raw.split(' — ').pop().trim() : raw;
+  }
+  if (!ref) { showToast('Type a client name and pick a booking', 'red'); return; }
   document.getElementById('posBookingInfo').innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);"><div class="spinner-lg"></div>Looking up…</div>';
   try {
     const res = await fetch(SCRIPT_URL + '?action=cfPOSBookingLookup&token=' + encodeURIComponent(sessionToken) + '&ref=' + encodeURIComponent(ref) + '&ts=' + Date.now());
@@ -3527,6 +3653,21 @@ async function submitPOSSale() {
     if (!json.success) throw new Error(json.error||'Failed');
     showToast('✓ Sale complete — ₱' + json.total.toLocaleString(), 'gold');
     posPrintReceipt(json.id);
+    // Store a manually-entered client name in the Clients sheet (best-effort)
+    const custName = document.getElementById('posCustomer').value.trim();
+    if (custName && custName.toLowerCase() !== 'walk-in' &&
+        !(window._posClientNames && [..._posClientNames].some(n=>n.toLowerCase()===custName.toLowerCase()))) {
+      fetch(SCRIPT_URL + '?action=cfCreateClient&token=' + encodeURIComponent(sessionToken)
+            + '&fullName=' + encodeURIComponent(custName) + '&leadSource=POS&ts=' + Date.now())
+        .then(r=>r.json()).then(j=>{
+          if (j.success) {
+            if (window._posClientNames) _posClientNames.add(custName);
+            if (Array.isArray(_cfClientNames)) _cfClientNames.push(custName);
+            buildPosClientPool();
+            showToast('✓ "' + custName + '" saved to Clients', 'gold');
+          }
+        }).catch(()=>{});
+    }
     // reset
     document.getElementById('posSaleLines').innerHTML = '';
     document.getElementById('posCustomer').value = '';
@@ -6597,6 +6738,93 @@ document.addEventListener('keydown', function(e){
     if (s) { s.focus(); s.select(); }
   }
 });
+
+
+// =============================================================
+//  BOOKINGS: sync indicator + in-modal payments (reuses cfPOSPayment)
+// =============================================================
+function setSync(state, msg) {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  const tim = document.getElementById('syncTime');
+  if (!dot) return;
+  dot.className = state;
+  if (txt) txt.textContent = msg || (state==='loading'?'Syncing…':state==='ok'?'Synced':'Sync error');
+  if (tim && state !== 'loading') tim.textContent = 'as of ' + new Date().toLocaleTimeString();
+}
+
+function renderModalPayStrip(b) {
+  const chip = document.getElementById('payBalChip');
+  const amt = document.getElementById('payAmtInput');
+  const rec = document.getElementById('payRecordBtn');
+  const full = document.getElementById('fullyPaidBtn');
+  if (!chip) return;
+  const bal = +b['Balance (\u20b1)'] || 0;
+  const paid = bal <= 0;
+  if (paid) {
+    chip.textContent = '\u2713 PAID IN FULL';
+    chip.style.background = 'rgba(124,179,66,0.15)';
+    chip.style.color = '#7cb342';
+    amt.style.display = 'none';
+    document.getElementById('payMethodSel').style.display = 'none';
+    rec.style.display = 'none';
+    full.style.display = 'none';
+  } else {
+    chip.textContent = '\u20b1' + bal.toLocaleString() + ' due';
+    chip.style.background = 'rgba(244,169,59,0.15)';
+    chip.style.color = '#f4a93b';
+    amt.style.display = '';
+    document.getElementById('payMethodSel').style.display = '';
+    rec.style.display = '';
+    full.style.display = '';
+    amt.value = '';
+    amt.max = bal;
+    amt.placeholder = '\u20b1 up to ' + bal.toLocaleString();
+  }
+}
+
+async function recordModalPayment(fullBalance) {
+  const b = window._modalBooking;
+  if (!b || !currentRef) { showToast('No booking selected', 'red'); return; }
+  const bal = +b['Balance (\u20b1)'] || 0;
+  if (bal <= 0) { showToast('Already fully paid', 'gold'); return; }
+  const amount = fullBalance ? bal : (+document.getElementById('payAmtInput').value || 0);
+  if (!amount || amount <= 0) { showToast('Enter a payment amount', 'red'); return; }
+  if (amount > bal + 0.01) { showToast('Amount exceeds the \u20b1' + bal.toLocaleString() + ' balance', 'red'); return; }
+  const method = document.getElementById('payMethodSel').value;
+  if (!confirm((fullBalance ? 'Mark FULLY PAID: collect \u20b1' + bal.toLocaleString() : 'Record payment of \u20b1' + amount.toLocaleString()) + ' via ' + method + '?\nThis updates the booking and posts income to Bookkeeping.')) return;
+
+  const rec = document.getElementById('payRecordBtn'), full = document.getElementById('fullyPaidBtn');
+  rec.disabled = true; full.disabled = true;
+  setSync('loading', 'Recording payment…');
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfPOSPayment&token=' + encodeURIComponent(sessionToken)
+                + '&ref=' + encodeURIComponent(currentRef) + '&amount=' + amount
+                + '&method=' + encodeURIComponent(method) + '&note=' + encodeURIComponent('via booking details') + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Payment failed');
+
+    // Update local record so table/stats/modal all reflect the new figures
+    b['Downpayment (\u20b1)'] = json.newDown;
+    b['Balance (\u20b1)'] = json.newBalance;
+    if ((b['Status'] === 'NEW' || !b['Status'])) { b['Status'] = 'Confirmed'; } // backend auto-confirms on payment
+    updateStats(); applyFilters();
+    setSync('ok', 'Payment synced to sheet + ledger');
+    showToast(json.paidInFull ? '\u2713 PAID IN FULL — \u20b1' + amount.toLocaleString() + ' recorded' : '\u2713 \u20b1' + amount.toLocaleString() + ' recorded', 'gold');
+    if (typeof posPrintReceipt === 'function' && json.id) posPrintReceipt(json.id);
+
+    // Rebuild the open modal with fresh figures
+    const rows = window._filteredRows || allBookings;
+    const idx = rows.indexOf(b);
+    if (idx >= 0) openModal(idx);
+    else { document.getElementById('statusSelect').value = b['Status'] || 'NEW'; renderModalPayStrip(b); }
+  } catch(e) {
+    setSync('error', 'Payment failed');
+    showToast('Error: ' + e.message, 'red');
+  } finally {
+    rec.disabled = false; full.disabled = false;
+  }
+}
 
 </script>
 </body>
