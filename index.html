@@ -1294,9 +1294,28 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <div id="wfDiagram" style="width:100%;overflow-x:auto;text-align:center;padding:1rem 0;min-height:160px;"></div>
     </div>
 
+    <!-- Health + key metrics -->
     <div class="exec-section">
-      <div class="exec-section-title">📊 Stage Breakdown</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.9rem;">
+        <div class="exec-section-title" style="margin:0;">📐 Key Metrics</div>
+        <div id="wfHealth"></div>
+      </div>
+      <div id="wfMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.6rem;"></div>
+    </div>
+
+    <!-- Smart analysis -->
+    <div class="exec-section">
+      <div class="exec-section-title">🧠 Smart Analysis</div>
+      <div id="wfInsights"></div>
+      <div style="font-size:0.66rem;color:var(--muted);margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.6rem;">
+        Transparent rule-based analysis computed live from your data — every finding traces to a visible number above. No black-box AI.
+      </div>
+    </div>
+
+    <div class="exec-section">
+      <div class="exec-section-title">📊 Stage Breakdown <span style="font-size:0.68rem;color:var(--muted);font-weight:400;">· tap a stage to see its items</span></div>
       <div id="wfBreakdown"></div>
+      <div id="wfDrill"></div>
     </div>
   </div>
 
@@ -3598,6 +3617,8 @@ async function posPrintReceipt(id) {
 // =============================================================
 let _wfSub = 'booking';
 let _wfData = { booking:{}, ticket:{}, ncr:{}, delivery:{} };
+let _wfRaw = { bookings:[], tickets:[], ncrs:[], deliveries:[] };
+let _wfDrillStage = null;
 let _mermaidReady = false;
 
 function initMermaidOnce() {
@@ -3613,26 +3634,29 @@ function initMermaidOnce() {
   _mermaidReady = true;
 }
 
+function wfDate(s) { const d = new Date(s); return isNaN(d) ? null : d; }
+function wfDaysBetween(a, b) { return Math.round((b - a) / 86400000); }
+
 async function loadWorkflows() {
   initMermaidOnce();
-  // Gather counts from existing endpoints (reuse loaded data where possible)
   try {
-    // Bookings
     if (!allBookings || !allBookings.length) { try { await loadBookings(); } catch(e){} }
+    _wfRaw.bookings = allBookings || [];
     const bk = {};
-    (allBookings||[]).forEach(b => { const s=b['Status']||'NEW'; bk[s]=(bk[s]||0)+1; });
+    _wfRaw.bookings.forEach(b => { const s=b['Status']||'NEW'; bk[s]=(bk[s]||0)+1; });
     _wfData.booking = bk;
 
-    // Tickets, NCRs, deliveries — fetch in parallel
     const [tk, nc, dl] = await Promise.all([
       fetch(SCRIPT_URL + '?action=cfTicketList&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now()).then(r=>r.json()).catch(()=>({})),
       fetch(SCRIPT_URL + '?action=cfNCRList&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now()).then(r=>r.json()).catch(()=>({})),
       fetch(SCRIPT_URL + '?action=cfDeliveryList&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now()).then(r=>r.json()).catch(()=>({}))
     ]);
-    const tc={}; (tk.tickets||[]).forEach(t=>{ const s=t.status||'Open'; tc[s]=(tc[s]||0)+1; }); _wfData.ticket=tc;
-    const nn={}; (nc.ncrs||[]).forEach(n=>{ const s=n.status||'Open'; nn[s]=(nn[s]||0)+1; }); _wfData.ncr=nn;
-    const dd={}; (dl.deliveries||[]).forEach(d=>{ const s=d.status||'Scheduled'; dd[s]=(dd[s]||0)+1; }); _wfData.delivery=dd;
+    _wfRaw.tickets = tk.tickets||[]; _wfRaw.ncrs = nc.ncrs||[]; _wfRaw.deliveries = dl.deliveries||[];
+    const tc={}; _wfRaw.tickets.forEach(t=>{ const s=t.status||'Open'; tc[s]=(tc[s]||0)+1; }); _wfData.ticket=tc;
+    const nn={}; _wfRaw.ncrs.forEach(n=>{ const s=n.status||'Open'; nn[s]=(nn[s]||0)+1; }); _wfData.ncr=nn;
+    const dd={}; _wfRaw.deliveries.forEach(d=>{ const s=d.status||'Scheduled'; dd[s]=(dd[s]||0)+1; }); _wfData.delivery=dd;
 
+    _wfDrillStage = null;
     renderWorkflow();
   } catch (e) {
     document.getElementById('wfDiagram').innerHTML = '<div style="color:#ff6b6b;padding:1rem;">Error: ' + e.message + '</div>';
@@ -3679,7 +3703,7 @@ function renderWorkflow() {
   const counts = _wfData[_wfSub] || {};
   setEl('wfTitle', def.title);
 
-  // Build Mermaid flowchart with counts baked into node labels
+  // ── Mermaid diagram (counts baked into nodes) ──
   let mmd = 'graph LR\n';
   const nodeId = s => 'S' + s.replace(/[^a-zA-Z0-9]/g,'');
   def.stages.forEach((stage, i) => {
@@ -3687,7 +3711,6 @@ function renderWorkflow() {
     mmd += `  ${nodeId(stage)}["${stage}<br/>${n}"]\n`;
     if (i > 0) mmd += `  ${nodeId(def.stages[i-1])} --> ${nodeId(stage)}\n`;
   });
-  // Extra terminal states (e.g. Cancelled) branch from first stage
   (def.extra||[]).forEach(stage => {
     const n = counts[stage] || 0;
     if (n > 0) {
@@ -3695,25 +3718,45 @@ function renderWorkflow() {
       mmd += `  ${nodeId(def.stages[0])} -.-> ${nodeId(stage)}\n`;
     }
   });
-  // Style each node by its color, dim if zero
   def.stages.concat(def.extra||[]).forEach(stage => {
     const n = counts[stage] || 0;
     const col = def.colors[stage] || '#9b8068';
     const opacity = n > 0 ? '' : 'opacity:0.35,';
     mmd += `  style ${nodeId(stage)} fill:${col},stroke:${col},color:#0f0a06,${opacity}font-weight:bold\n`;
   });
-
   const container = document.getElementById('wfDiagram');
   container.innerHTML = '';
   if (typeof mermaid === 'undefined') {
     container.innerHTML = '<div style="color:var(--muted);padding:2rem;">Diagram library loading… tap Refresh.</div>';
   } else {
-    const id = 'mmd-' + Date.now();
-    mermaid.render(id, mmd).then(({svg}) => { container.innerHTML = svg; })
+    mermaid.render('mmd-' + Date.now(), mmd).then(({svg}) => { container.innerHTML = svg; })
       .catch(() => { container.innerHTML = '<div style="color:#ff6b6b;padding:1rem;">Could not render diagram.</div>'; });
   }
 
-  // Breakdown bars
+  // ── Analysis (metrics + health + insights) ──
+  const a = analyzeWorkflow(_wfSub);
+  renderWfHealth(a.health);
+  document.getElementById('wfMetrics').innerHTML = a.metrics.map(m => `
+    <div style="background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:0.7rem 0.85rem;">
+      <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">${m.label}</div>
+      <div style="font-size:1.15rem;font-weight:800;color:${m.color||'var(--gold)'};margin-top:2px;">${m.value}</div>
+      ${m.sub?`<div style="font-size:0.64rem;color:var(--muted);">${m.sub}</div>`:''}
+    </div>`).join('');
+
+  const sevMeta = { crit:{c:'#ef5350',t:'CRITICAL'}, warn:{c:'#f4a93b',t:'ATTENTION'}, good:{c:'#7cb342',t:'HEALTHY'} };
+  document.getElementById('wfInsights').innerHTML = a.insights.length
+    ? a.insights.map(i => { const s = sevMeta[i.sev]||sevMeta.good; return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid ${s.c};border-radius:10px;padding:0.8rem 0.95rem;margin-bottom:0.55rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+          <span>${i.icon}</span>
+          <span style="font-weight:700;font-size:0.85rem;flex:1;">${i.text}</span>
+          <span style="background:${s.c};color:#0f0a06;font-size:0.56rem;font-weight:800;padding:2px 7px;border-radius:8px;letter-spacing:0.05em;">${s.t}</span>
+        </div>
+        ${i.rec?`<div style="font-size:0.76rem;color:var(--muted);padding-left:1.6rem;">→ ${i.rec}</div>`:''}
+      </div>`; }).join('')
+    : '<div style="text-align:center;color:var(--muted);padding:1.25rem;font-size:0.85rem;">Not enough data in this workflow yet for analysis.</div>';
+
+  // ── Breakdown bars (clickable → drill-down) ──
   const allStages = def.stages.concat(def.extra||[]);
   const total = allStages.reduce((s,st)=>s+(counts[st]||0),0);
   document.getElementById('wfBreakdown').innerHTML = total === 0
@@ -3721,13 +3764,162 @@ function renderWorkflow() {
     : allStages.map(stage => {
         const n = counts[stage]||0;
         const pct = total>0 ? Math.round(n/total*100) : 0;
-        return `<div style="margin-bottom:0.6rem;">
+        const active = _wfDrillStage===stage;
+        return `<div onclick="wfDrill('${stage.replace(/'/g,"\\'")}')" style="margin-bottom:0.6rem;cursor:pointer;${active?'background:var(--card);border-radius:8px;padding:0.5rem;margin:-0.5rem -0.5rem 0.6rem;':''}">
           <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:3px;">
-            <span>${escapeHtml(stage)}</span><strong style="color:${def.colors[stage]||'#9b8068'};">${n} (${pct}%)</strong>
+            <span>${active?'▾ ':''}${escapeHtml(stage)}</span><strong style="color:${def.colors[stage]||'#9b8068'};">${n} (${pct}%)</strong>
           </div>
           <div style="height:7px;background:var(--card);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${def.colors[stage]||'#9b8068'};"></div></div>
         </div>`;
       }).join('');
+  renderWfDrill();
+}
+
+function renderWfHealth(h) {
+  const col = h >= 75 ? '#7cb342' : h >= 50 ? '#f4a93b' : '#ef5350';
+  const label = h >= 75 ? 'Healthy' : h >= 50 ? 'Needs attention' : 'At risk';
+  document.getElementById('wfHealth').innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.6rem;">
+      <div style="width:120px;height:8px;background:var(--card);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${h}%;background:${col};transition:width 0.4s;"></div></div>
+      <span style="font-weight:800;color:${col};font-size:0.95rem;">${h}</span>
+      <span style="font-size:0.68rem;color:var(--muted);">/100 · ${label}</span>
+    </div>`;
+}
+
+// ── The analysis engine: transparent rules per workflow ──
+function analyzeWorkflow(sub) {
+  const now = new Date();
+  const metrics = [], insights = [];
+  let health = 100;
+  const clamp = v => Math.max(0, Math.min(100, Math.round(v)));
+
+  if (sub === 'booking') {
+    const bs = _wfRaw.bookings;
+    const by = s => bs.filter(b=>(b['Status']||'NEW')===s);
+    const neu = by('NEW'), conf = by('Confirmed'), done = by('Done'), canc = by('Cancelled');
+    const decided = conf.length + done.length + canc.length;
+    const convRate = decided ? Math.round((conf.length+done.length)/decided*100) : null;
+    const pipeRevenue = conf.reduce((s,b)=>s+(+getNum(b,'TOTAL')||+b['Total Amount']||+b['TOTAL']||0),0);
+    const pipeBalance = conf.reduce((s,b)=>s+(+b['Balance']||+b['BALANCE']||0),0);
+    const next7 = conf.filter(b=>{ const d=wfDate(b['Event Date']||b['DATE']); return d && wfDaysBetween(now,d)>=0 && wfDaysBetween(now,d)<=7; });
+    const urgentNew = neu.filter(b=>{ const d=wfDate(b['Event Date']||b['DATE']); return d && wfDaysBetween(now,d)>=0 && wfDaysBetween(now,d)<=14; });
+
+    metrics.push({ label:'Conversion', value: convRate===null?'—':convRate+'%', sub:'of decided bookings won', color: convRate===null?'var(--muted)':(convRate>=70?'#7cb342':convRate>=40?'#f4a93b':'#ef5350') });
+    metrics.push({ label:'Pipeline Value', value:'₱'+Math.round(pipeRevenue).toLocaleString(), sub:conf.length+' confirmed event(s)' });
+    metrics.push({ label:'Receivable', value:'₱'+Math.round(pipeBalance).toLocaleString(), sub:'unpaid balances', color: pipeBalance>0?'#f4a93b':'#7cb342' });
+    metrics.push({ label:'Next 7 Days', value:next7.length, sub:'events to deliver', color:'#4fa3ff' });
+
+    if (urgentNew.length) { health -= 25; insights.push({ icon:'⏰', sev:'crit', text:urgentNew.length+' NEW inquiry(ies) with event dates within 14 days', rec:'Confirm or decline these first — the event date is closing in and the client is likely shopping around.' }); }
+    if (canc.length && bs.length && canc.length/bs.length > 0.25) { health -= 20; insights.push({ icon:'📉', sev:'warn', text:'Cancellation rate is '+Math.round(canc.length/bs.length*100)+'% of all bookings', rec:'Review why clients cancel — deposit policy, follow-up speed, or pricing are the usual suspects.' }); }
+    if (pipeBalance > 0) insights.push({ icon:'💰', sev:'warn', text:'₱'+Math.round(pipeBalance).toLocaleString()+' in unpaid balances on confirmed events', rec:'Collect via POS → Booking Payment, or approve the reminder proposals from the Accounts Agent.' });
+    if (neu.length > conf.length && neu.length >= 3) { health -= 10; insights.push({ icon:'🪤', sev:'warn', text:'More inquiries ('+neu.length+') than confirmations ('+conf.length+') — pipeline bottleneck at NEW', rec:'Faster first response and a clear deposit link typically lift conversion the most.' }); }
+    if (!insights.length && bs.length) insights.push({ icon:'✅', sev:'good', text:'Booking pipeline is flowing — no stuck inquiries, cancellations in normal range', rec:'' });
+
+  } else if (sub === 'ticket') {
+    const ts = _wfRaw.tickets;
+    const open = ts.filter(t=>t.status!=='Resolved'&&t.status!=='Closed');
+    const resolved = ts.filter(t=>t.status==='Resolved'||t.status==='Closed');
+    const breached = ts.filter(t=>t.slaState==='breached');
+    const met = resolved.filter(t=>t.slaState==='met');
+    const compliance = resolved.length ? Math.round(met.length/resolved.length*100) : null;
+    // Avg resolution time where both stamps parse
+    const durs = resolved.map(t=>{ const a=wfDate(t.createdAt), b=wfDate(t.resolvedAt); return (a&&b&&b>a)?(b-a)/3600000:null; }).filter(v=>v!==null);
+    const avgH = durs.length ? Math.round(durs.reduce((s,v)=>s+v,0)/durs.length) : null;
+
+    metrics.push({ label:'Open', value:open.length, sub:'need action', color: open.length?'#4fa3ff':'#7cb342' });
+    metrics.push({ label:'SLA Compliance', value: compliance===null?'—':compliance+'%', sub:'resolved within SLA', color: compliance===null?'var(--muted)':(compliance>=80?'#7cb342':compliance>=50?'#f4a93b':'#ef5350') });
+    metrics.push({ label:'Avg Resolution', value: avgH===null?'—':(avgH<48?avgH+'h':Math.round(avgH/24)+'d'), sub:'across '+durs.length+' resolved' });
+    metrics.push({ label:'Breached Now', value:breached.filter(t=>open.includes(t)).length, sub:'past deadline', color: breached.length?'#ef5350':'#7cb342' });
+
+    const openBreached = open.filter(t=>t.slaState==='breached');
+    if (openBreached.length) { health -= Math.min(45, openBreached.length*15); insights.push({ icon:'🚨', sev:'crit', text:openBreached.length+' open ticket(s) past their SLA deadline', rec:'Resolve these first: '+openBreached.slice(0,3).map(t=>t.id).join(', ')+'. The Service Agent can escalate them for you.' }); }
+    const urgent = open.filter(t=>t.slaState==='urgent');
+    if (urgent.length) { health -= urgent.length*5; insights.push({ icon:'⏳', sev:'warn', text:urgent.length+' ticket(s) due within 2 hours', rec:'A quick comment or resolution now avoids a breach.' }); }
+    const waiting = open.filter(t=>t.status==='Waiting');
+    if (waiting.length >= 3) insights.push({ icon:'📮', sev:'warn', text:waiting.length+' tickets parked in Waiting', rec:'Chase the client or close stale ones — Waiting still counts against your SLA clock.' });
+    if (!insights.length) insights.push({ icon:'✅', sev:'good', text: ts.length? 'Service desk is on top of things — no breaches, nothing overdue':'No tickets yet — service desk is quiet', rec:'' });
+
+  } else if (sub === 'ncr') {
+    const ns = _wfRaw.ncrs;
+    const open = ns.filter(n=>n.status!=='Closed');
+    const closed = ns.filter(n=>n.status==='Closed');
+    const openHigh = open.filter(n=>n.severity==='High');
+    const ages = open.map(n=>{ const d=wfDate(n.raisedDate); return d?wfDaysBetween(d,now):null; }).filter(v=>v!==null);
+    const avgAge = ages.length ? Math.round(ages.reduce((s,v)=>s+v,0)/ages.length) : null;
+    const noCapa = open.filter(n=>n.status!=='Open' && !n.correctiveAction);
+
+    metrics.push({ label:'Open NCRs', value:open.length, sub:'unresolved issues', color: open.length?'#f4a93b':'#7cb342' });
+    metrics.push({ label:'High Severity', value:openHigh.length, sub:'open right now', color: openHigh.length?'#ef5350':'#7cb342' });
+    metrics.push({ label:'Avg Age', value: avgAge===null?'—':avgAge+'d', sub:'of open NCRs', color: avgAge>14?'#ef5350':avgAge>7?'#f4a93b':'#7cb342' });
+    metrics.push({ label:'Closure Rate', value: ns.length?Math.round(closed.length/ns.length*100)+'%':'—', sub:closed.length+' of '+ns.length+' closed' });
+
+    if (openHigh.length) { health -= Math.min(40, openHigh.length*20); insights.push({ icon:'🔴', sev:'crit', text:openHigh.length+' high-severity NCR(s) still open', rec:'Food-safety-grade issues: assign an owner, set the root cause, and drive to Action Taken.' }); }
+    const stale = open.filter(n=>{ const d=wfDate(n.raisedDate); return d && wfDaysBetween(d,now)>14; });
+    if (stale.length) { health -= 15; insights.push({ icon:'🕰️', sev:'warn', text:stale.length+' NCR(s) open for more than 14 days', rec:'Aging NCRs mean recurring risk — close them or document why they must stay open.' }); }
+    if (noCapa.length) insights.push({ icon:'📝', sev:'warn', text:noCapa.length+' in-progress NCR(s) missing a corrective action', rec:'Fill in Root Cause and Corrective Action before closing — this is what prevents repeats.' });
+    if (!insights.length) insights.push({ icon:'✅', sev:'good', text: ns.length? 'Quality issues are being resolved at a healthy pace':'No non-conformances recorded — quality is on track', rec:'' });
+
+  } else { // delivery
+    const ds = _wfRaw.deliveries;
+    const enRoute = ds.filter(d=>d.status==='En Route');
+    const scheduled = ds.filter(d=>d.status==='Scheduled');
+    const delivered = ds.filter(d=>d.status==='Delivered');
+    const doneRate = ds.length ? Math.round(delivered.length/ds.length*100) : null;
+    const overdue = scheduled.filter(d=>{ const t=wfDate(d.scheduledDeparture); return t && t < now; });
+    const noDest = ds.filter(d=>d.status!=='Delivered'&&d.status!=='Cancelled'&&(!d.destLat||!d.destLng));
+
+    metrics.push({ label:'En Route', value:enRoute.length, sub:'live now', color:'#4fa3ff' });
+    metrics.push({ label:'Scheduled', value:scheduled.length, sub:'upcoming trips' });
+    metrics.push({ label:'Completed', value: doneRate===null?'—':doneRate+'%', sub:delivered.length+' delivered', color:'#7cb342' });
+    metrics.push({ label:'Past Departure', value:overdue.length, sub:'not yet en route', color: overdue.length?'#ef5350':'#7cb342' });
+
+    if (overdue.length) { health -= Math.min(40, overdue.length*20); insights.push({ icon:'🕐', sev:'crit', text:overdue.length+' delivery(ies) past scheduled departure but not En Route', rec:'Call the driver, then cycle the status or reschedule — clients watch these clocks.' }); }
+    if (noDest.length) insights.push({ icon:'📍', sev:'warn', text:noDest.length+' active delivery(ies) without destination coordinates', rec:'Add lat/lng so the live map and routed ETA can work for them.' });
+    if (enRoute.length) insights.push({ icon:'🚚', sev:'good', text:enRoute.length+' driver(s) on the road right now', rec:'Watch them live in the Delivery tab.' });
+    if (!insights.length) insights.push({ icon:'✅', sev:'good', text: ds.length? 'Deliveries are running on schedule':'No deliveries yet — create one from a confirmed booking', rec:'' });
+  }
+
+  // Sort: critical → warn → good
+  const rank = { crit:0, warn:1, good:2 };
+  insights.sort((a,b)=>rank[a.sev]-rank[b.sev]);
+  return { health: clamp(health), metrics, insights };
+}
+
+// ── Stage drill-down: tap a breakdown row to list its items ──
+function wfDrill(stage) {
+  _wfDrillStage = (_wfDrillStage === stage) ? null : stage;
+  renderWorkflow();
+}
+
+function renderWfDrill() {
+  const box = document.getElementById('wfDrill');
+  if (!_wfDrillStage) { box.innerHTML = ''; return; }
+  const stage = _wfDrillStage;
+  let items = [];
+  if (_wfSub === 'booking') {
+    items = _wfRaw.bookings.filter(b=>(b['Status']||'NEW')===stage).map(b=>({
+      a: b['Client Name']||'—', b: (b['Event Date']||'')+' · '+(b['Package']||''), c: '₱'+(+b['Balance']||+b['BALANCE']||0).toLocaleString()+' due' }));
+  } else if (_wfSub === 'ticket') {
+    items = _wfRaw.tickets.filter(t=>t.status===stage).map(t=>({
+      a: t.subject||t.id, b: t.priority+' · '+(t.clientName||''), c: t.slaState==='breached'?'⚠️ overdue':(t.hoursLeft!==null&&t.hoursLeft!==undefined?t.hoursLeft+'h left':'') }));
+  } else if (_wfSub === 'ncr') {
+    items = _wfRaw.ncrs.filter(n=>n.status===stage).map(n=>({
+      a: n.title||n.id, b: n.severity+' · '+(n.source||''), c: n.raisedDate||'' }));
+  } else {
+    items = _wfRaw.deliveries.filter(d=>d.status===stage).map(d=>({
+      a: d.clientName||d.eventRef||d.id, b: (d.driverName||'no driver')+' · '+(d.vehicleName||'—'), c: d.scheduledDeparture||'' }));
+  }
+  box.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:0.75rem 0.9rem;margin-top:0.5rem;">
+      <div style="font-size:0.72rem;color:var(--gold);font-weight:700;margin-bottom:0.5rem;">${escapeHtml(stage)} — ${items.length} item(s)</div>
+      ${items.length ? items.slice(0,10).map(i=>`
+        <div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.78rem;">
+          <div style="flex:1;min-width:0;"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(i.a)}</div>
+          <div style="color:var(--muted);font-size:0.68rem;">${escapeHtml(i.b)}</div></div>
+          <div style="color:var(--muted);font-size:0.7rem;white-space:nowrap;">${escapeHtml(String(i.c))}</div>
+        </div>`).join('') + (items.length>10?`<div style="font-size:0.68rem;color:var(--muted);text-align:center;padding-top:0.4rem;">+ ${items.length-10} more — see the ${escapeHtml(_wfSub)} tab</div>`:'')
+      : '<div style="color:var(--muted);font-size:0.78rem;">Empty stage.</div>'}
+    </div>`;
 }
 
 // =============================================================
