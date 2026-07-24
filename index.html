@@ -398,6 +398,67 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
   #deliveryLayout{grid-template-columns:1fr !important;}
   #deliveryMap{height:380px !important;}
 }
+
+/* ============ RESPONSIVE v2 — consolidated optimization ============ */
+/* Media elements never overflow their container */
+img,svg,canvas,video{max-width:100%;height:auto;}
+#wfDiagram svg{max-width:none;} /* Mermaid diagrams scroll horizontally instead of squishing */
+
+/* Smooth horizontal tab strip with snap */
+.nav-tabs{scroll-behavior:smooth;}
+@media(max-width:900px){
+  .nav-tabs{scroll-snap-type:x proximity;}
+  .nav-tab{scroll-snap-align:center;}
+}
+
+@media(max-width:640px){
+  /* iOS zooms any focused input under 16px — force 16px on touch layouts */
+  .entry-input, .filter-search, .filter-select,
+  input[type="text"],input[type="number"],input[type="email"],input[type="date"],
+  input[type="time"],input[type="datetime-local"],input[type="password"],
+  select,textarea{font-size:16px !important;}
+
+  /* Comfortable touch targets */
+  .refresh-btn,.filter-chip-bl{min-height:40px;}
+  .nav-tab{min-height:38px;}
+
+  /* Delivery ETA panel: compact so it doesn't cover the mobile map */
+  #etaPanel{max-width:150px !important;padding:0.5rem 0.65rem !important;}
+  #etaPanel #etaTime{font-size:1rem !important;}
+  #etaPanel #etaDetail{font-size:0.64rem !important;}
+  #etaPanel #etaSub{font-size:0.56rem !important;}
+
+  /* Sub-tab chip rows scroll horizontally instead of tall wrapping */
+  #qcView > div:nth-of-type(2), #purchasingView > div:nth-of-type(2),
+  #staffView > div:nth-of-type(2), #posView > div:nth-of-type(2),
+  #workflowsView > div:nth-of-type(3), #supportView > div:nth-of-type(3){
+    flex-wrap:nowrap !important;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding-bottom:0.25rem;
+  }
+  .filter-chip-bl{flex-shrink:0;white-space:nowrap;}
+
+  /* Workflow diagram + breakdown breathing room */
+  #wfDiagram{padding:0.5rem 0 !important;}
+
+  /* Agent roster: 2 tidy columns */
+  #agentRoster{grid-template-columns:repeat(2,1fr) !important;}
+
+  /* Payroll / detail tables inside sections scroll rather than squish */
+  .exec-section table{min-width:480px;}
+}
+
+@media(max-width:400px){
+  /* Line-item grids (PO / POS / checklist builder) compact further */
+  #posSaleLines > div, #poLines > div{grid-template-columns:1fr 48px 70px 24px !important;gap:0.3rem !important;}
+  #chkItems > div{grid-template-columns:1fr 64px 26px !important;gap:0.3rem !important;}
+  /* View header: title + actions stack */
+  .main > div:first-child{flex-direction:column;align-items:stretch !important;}
+  .main > div:first-child > div{justify-content:stretch;}
+  .main > div:first-child .refresh-btn{flex:1;}
+  #agentRoster{grid-template-columns:1fr !important;}
+  #deliveryMap{height:300px !important;}
+}
+/* =================== end RESPONSIVE v2 =================== */
 </style>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -451,6 +512,7 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
         <button class="nav-tab" id="tabStaff" onclick="switchTab('staff')">👥 Staff</button>
         <button class="nav-tab" id="tabAgents" onclick="switchTab('agents')">🤖 Agents</button>
         <button class="nav-tab" id="tabWorkflows" onclick="switchTab('workflows')">🔀 Workflows</button>
+        <button class="nav-tab" id="tabPOS" onclick="switchTab('pos')">💳 POS</button>
       </div>
     </div>
   </div>
@@ -1146,7 +1208,80 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
       <div id="wfBreakdown"></div>
     </div>
   </div>
+
+  <!-- POS VIEW -->
+  <div id="posView" class="main" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">💳 Point of Sale</h2>
+      <button class="refresh-btn" onclick="loadPOSHistory()">↻ Refresh</button>
+    </div>
+
+    <!-- Mode toggle -->
+    <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+      <button class="filter-chip-bl active" id="posMode-payment" onclick="setPOSMode('payment',this)">💰 Booking Payment</button>
+      <button class="filter-chip-bl" id="posMode-sale" onclick="setPOSMode('sale',this)">🛍️ Direct Sale</button>
+      <button class="filter-chip-bl" id="posMode-history" onclick="setPOSMode('history',this)">🧾 History</button>
+    </div>
+
+    <!-- PAYMENT MODE -->
+    <div id="posPaymentPane">
+      <div class="exec-section" style="max-width:560px;">
+        <div class="exec-section-title">Collect Payment on a Booking</div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+          <input type="text" class="entry-input" id="posRef" placeholder="Booking reference (e.g. APT-2024-0042)" style="flex:1;"/>
+          <button class="refresh-btn" style="background:var(--brown);color:#fff;border-color:var(--brown);" onclick="posLookup()">🔍 Find</button>
+        </div>
+        <div id="posBookingInfo"></div>
+      </div>
+    </div>
+
+    <!-- DIRECT SALE MODE -->
+    <div id="posSalePane" style="display:none;">
+      <div class="exec-section" style="max-width:620px;">
+        <div class="exec-section-title">Direct Sale</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
+          <div><label class="entry-label">Customer (optional)</label><input type="text" class="entry-input" id="posCustomer" placeholder="Walk-in"/></div>
+          <div><label class="entry-label">Payment Method</label>
+            <select class="entry-input" id="posSaleMethod"><option>Cash</option><option>GCash</option><option>Bank Transfer</option><option>Card</option></select></div>
+        </div>
+        <label class="entry-label">Items</label>
+        <div id="posSaleLines" style="margin-bottom:0.5rem;"></div>
+        <button class="refresh-btn" style="width:100%;margin-bottom:1rem;" onclick="addPOSLine()">+ Add Item</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+          <label class="entry-label" style="margin:0;">Discount (₱)</label>
+          <input type="number" class="entry-input" id="posDiscount" value="0" min="0" step="0.01" style="width:120px;" oninput="updatePOSTotal()"/>
+        </div>
+        <div style="text-align:right;font-size:1.2rem;font-weight:800;color:var(--gold);margin-bottom:1rem;" id="posSaleTotal">Total: ₱0</div>
+        <button class="refresh-btn" style="width:100%;background:#7cb342;color:#fff;border-color:#7cb342;font-size:1rem;padding:0.85rem;" onclick="submitPOSSale()">💳 Complete Sale</button>
+        <p style="font-size:0.72rem;color:var(--muted);margin-top:0.6rem;text-align:center;">Linked items deduct from inventory · sale posts to bookkeeping as income</p>
+      </div>
+    </div>
+
+    <!-- HISTORY MODE -->
+    <div id="posHistoryPane" style="display:none;">
+      <div class="exec-kpi-grid">
+        <div class="exec-kpi" style="border-left:4px solid #7cb342;">
+          <div class="exec-kpi-label">Today's Takings</div>
+          <div class="exec-kpi-value" id="posToday" style="color:#7cb342;">—</div>
+          <div class="exec-kpi-sub">payments + sales</div>
+        </div>
+        <div class="exec-kpi" style="border-left:4px solid #4fa3ff;">
+          <div class="exec-kpi-label">Transactions</div>
+          <div class="exec-kpi-value" id="posCount">—</div>
+          <div class="exec-kpi-sub">recent</div>
+        </div>
+        <div class="exec-kpi" style="border-left:4px solid #C9A84C;">
+          <div class="exec-kpi-label">Total Recorded</div>
+          <div class="exec-kpi-value" id="posTotal">—</div>
+          <div class="exec-kpi-sub">all shown</div>
+        </div>
+      </div>
+      <div id="posHistory"></div>
+    </div>
+  </div>
 </div>
+
+<!-- POS RECEIPT (printable) is generated in a popup window -->
 
 <!-- STAFF MODAL -->
 <div class="overlay" id="staffOverlay" style="display:none" onclick="if(event.target===this)closeStaffModal()">
@@ -1489,6 +1624,7 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
           <span>🏛️ Track as a depreciating asset</span>
         </label>
         <div style="font-size:0.72rem;color:var(--muted);margin-top:0.3rem;">Adds purchase cost, depreciation &amp; maintenance tracking. Shows in the Assets tab too.</div>
+        <div id="invAutoAssetHint" style="display:none;font-size:0.72rem;color:var(--gold);margin-top:0.4rem;">🔗 This category is automatically tracked as an asset — it always appears in both Inventory and Assets.</div>
       </div>
 
       <!-- Asset fields (revealed when IsAsset checked) -->
@@ -2370,6 +2506,7 @@ function switchTab(tab) {
   document.getElementById('tabStaff').classList.toggle('active', tab === 'staff');
   document.getElementById('tabAgents').classList.toggle('active', tab === 'agents');
   document.getElementById('tabWorkflows').classList.toggle('active', tab === 'workflows');
+  document.getElementById('tabPOS').classList.toggle('active', tab === 'pos');
   document.getElementById('dashboardView').style.display = tab === 'dashboard' ? 'block' : 'none';
   document.getElementById('bookingsView').style.display  = tab === 'bookings' ? 'block' : 'none';
   document.getElementById('calendarView').style.display  = tab === 'calendar' ? 'block' : 'none';
@@ -2385,6 +2522,7 @@ function switchTab(tab) {
   document.getElementById('staffView').style.display = tab === 'staff' ? 'block' : 'none';
   document.getElementById('agentsView').style.display = tab === 'agents' ? 'block' : 'none';
   document.getElementById('workflowsView').style.display = tab === 'workflows' ? 'block' : 'none';
+  document.getElementById('posView').style.display = tab === 'pos' ? 'block' : 'none';
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'calendar') renderCalendar();
   if (tab === 'feedback') loadFeedback();
@@ -2399,6 +2537,15 @@ function switchTab(tab) {
   if (tab === 'staff') loadStaffing();
   if (tab === 'agents') loadAgents();
   if (tab === 'workflows') loadWorkflows();
+  if (tab === 'pos') initPOS();
+
+  // Mobile: keep the active tab visible in the scrollable strip
+  try {
+    const activeTab = document.querySelector('.nav-tab.active');
+    if (activeTab && window.innerWidth <= 900) {
+      activeTab.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+    }
+  } catch(e) {}
 }
 
 // -- ANALYTICS & BUSINESS INTELLIGENCE ------------------------
@@ -2862,16 +3009,31 @@ function renderInventory() {
   }).join('');
 }
 
-const CF_ASSET_CATS = ['furniture','equipment','vehicle','appliance','electronics','tools'];
+const CF_ASSET_CATS = ['furniture','equipment','vehicle','appliance','electronics','tools','serveware','linens'];
+// These always sync to Assets — toggle is forced ON and locked.
+const CF_AUTO_ASSET_CATS = ['equipment','serveware','furniture','linens'];
 
 function onInvCategoryChange() {
   const cat = document.getElementById('invCategory').value;
   const assetCapable = CF_ASSET_CATS.indexOf(cat) >= 0;
-  document.getElementById('invAssetToggleRow').style.display = assetCapable ? 'block' : 'none';
-  if (!assetCapable) {
-    document.getElementById('invIsAsset').checked = false;
-    toggleAssetFields();
+  const autoAsset = CF_AUTO_ASSET_CATS.indexOf(cat) >= 0;
+  const toggle = document.getElementById('invIsAsset');
+  const row = document.getElementById('invAssetToggleRow');
+  const hint = document.getElementById('invAutoAssetHint');
+
+  row.style.display = assetCapable ? 'block' : 'none';
+
+  if (autoAsset) {
+    // Force ON + lock — these categories are always assets
+    toggle.checked = true;
+    toggle.disabled = true;
+    if (hint) hint.style.display = 'block';
+  } else {
+    toggle.disabled = false;
+    if (hint) hint.style.display = 'none';
+    if (!assetCapable) toggle.checked = false;
   }
+  toggleAssetFields();
 }
 
 function toggleAssetFields() {
@@ -2896,7 +3058,7 @@ function openAddInvModal(barcode) {
   document.getElementById('invVendor').value = '';
   // reset asset fields
   document.getElementById('invIsAsset').checked = false;
-  document.getElementById('invPurchaseDate').value = '';
+  document.getElementById('invPurchaseDate').value = todayISO();
   document.getElementById('invPurchaseCost').value = '';
   document.getElementById('invUsefulLife').value = 5;
   document.getElementById('invSalvage').value = 0;
@@ -2943,7 +3105,8 @@ function saveInvItem() {
   const name = document.getElementById('invName').value.trim();
   if (!name) { showToast('Please enter item name', 'red'); return; }
   const cat = document.getElementById('invCategory').value;
-  const isAsset = CF_ASSET_CATS.indexOf(cat) >= 0 && document.getElementById('invIsAsset').checked;
+  const isAsset = CF_AUTO_ASSET_CATS.indexOf(cat) >= 0
+    || (CF_ASSET_CATS.indexOf(cat) >= 0 && document.getElementById('invIsAsset').checked);
   const data = {
     id: _editingInv || '',   // blank => backend assigns ITM-000001
     name: name,
@@ -3110,6 +3273,234 @@ function quickAdjustInv(id, delta) {
     .then(r=>r.json())
     .then(json=>{ if(json.success && typeof json.qty==='number'){ item.qty=json.qty; cacheInventoryLocal(); renderInventory(); } })
     .catch(()=>{});
+}
+
+// =============================================================
+//  POS (Point of Sale) — booking payments + direct sales
+// =============================================================
+let _posMode = 'payment';
+let _posBooking = null;
+let _posLineRows = [];
+let _posSales = [];
+
+function initPOS() {
+  setPOSMode('payment', document.getElementById('posMode-payment'));
+}
+
+function setPOSMode(mode, btn) {
+  _posMode = mode;
+  document.querySelectorAll('#posView .filter-chip-bl').forEach(c=>c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('posPaymentPane').style.display = mode==='payment' ? 'block' : 'none';
+  document.getElementById('posSalePane').style.display = mode==='sale' ? 'block' : 'none';
+  document.getElementById('posHistoryPane').style.display = mode==='history' ? 'block' : 'none';
+  if (mode==='sale' && _posLineRows.length===0) { addPOSLine(); }
+  if (mode==='history') loadPOSHistory();
+}
+
+// ---- Booking payment ----
+async function posLookup() {
+  const ref = document.getElementById('posRef').value.trim();
+  if (!ref) { showToast('Enter a booking reference', 'red'); return; }
+  document.getElementById('posBookingInfo').innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);"><div class="spinner-lg"></div>Looking up…</div>';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfPOSBookingLookup&token=' + encodeURIComponent(sessionToken) + '&ref=' + encodeURIComponent(ref) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Not found');
+    _posBooking = json.booking;
+    renderPOSBooking();
+  } catch(e) {
+    document.getElementById('posBookingInfo').innerHTML = '<div style="color:#ff6b6b;padding:1rem;text-align:center;">' + e.message + '</div>';
+  }
+}
+
+function renderPOSBooking() {
+  const b = _posBooking;
+  const paid = b.balance <= 0;
+  document.getElementById('posBookingInfo').innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1rem;margin-bottom:1rem;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;"><span style="font-weight:700;">${escapeHtml(b.client)}</span><span style="font-size:0.74rem;color:var(--muted);">${escapeHtml(b.ref)}</span></div>
+      <div style="font-size:0.76rem;color:var(--muted);margin-bottom:0.7rem;">${escapeHtml(b.eventType||'')} · ${escapeHtml(b.date||'')} · ${escapeHtml(b.status)}</div>
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.25rem 0;"><span style="color:var(--muted);">Total</span><span>₱${b.total.toLocaleString()}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.25rem 0;"><span style="color:var(--muted);">Paid</span><span style="color:#7cb342;">₱${b.down.toLocaleString()}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:800;padding:0.4rem 0;border-top:1px solid var(--border);margin-top:0.3rem;"><span>Balance</span><span style="color:${paid?'#7cb342':'#f4a93b'};">₱${b.balance.toLocaleString()}</span></div>
+    </div>
+    ${paid ? '<div style="text-align:center;color:#7cb342;font-weight:700;padding:1rem;">✓ This booking is fully paid.</div>' : `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
+        <div><label class="entry-label">Payment Amount (₱)</label><input type="number" class="entry-input" id="posPayAmount" min="0" max="${b.balance}" step="0.01" placeholder="0.00"/></div>
+        <div><label class="entry-label">Method</label><select class="entry-input" id="posPayMethod"><option>Cash</option><option>GCash</option><option>Bank Transfer</option><option>Card</option></select></div>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.85rem;">
+        <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('posPayAmount').value=${b.balance}">Full Balance</button>
+        <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('posPayAmount').value=${Math.round(b.total*0.5)}">50% Down</button>
+      </div>
+      <button class="refresh-btn" style="width:100%;background:#7cb342;color:#fff;border-color:#7cb342;font-size:1rem;padding:0.85rem;" onclick="submitPOSPayment()">💰 Record Payment</button>
+      <p style="font-size:0.72rem;color:var(--muted);margin-top:0.6rem;text-align:center;">Updates the booking balance · posts to bookkeeping as income</p>
+    `}`;
+}
+
+async function submitPOSPayment() {
+  const amount = +document.getElementById('posPayAmount').value;
+  if (!amount || amount <= 0) { showToast('Enter a payment amount', 'red'); return; }
+  const method = document.getElementById('posPayMethod').value;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfPOSPayment&token=' + encodeURIComponent(sessionToken)
+                + '&ref=' + encodeURIComponent(_posBooking.ref) + '&amount=' + amount + '&method=' + encodeURIComponent(method) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast(json.paidInFull ? '✓ Payment recorded — PAID IN FULL' : '✓ Payment recorded', 'gold');
+    posPrintReceipt(json.id);
+    // refresh the booking card
+    _posBooking.down = json.newDown; _posBooking.balance = json.newBalance;
+    renderPOSBooking();
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+// ---- Direct sale ----
+function addPOSLine(prefill) {
+  const idx = _posLineRows.length;
+  _posLineRows.push(idx);
+  const invOpts = (_inventory||[]).map(i=>`<option value="${escapeHtml(i.name)}" data-id="${i.id}" data-cost="${i.cost||0}">`).join('');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 60px 90px 30px;gap:0.4rem;margin-bottom:0.4rem;align-items:center;';
+  div.innerHTML = `
+    <input type="text" class="entry-input" list="posInv${idx}" id="posName${idx}" placeholder="Item" style="padding:0.45rem 0.6rem;font-size:0.82rem;" oninput="onPOSItemPick(${idx})"/>
+    <datalist id="posInv${idx}">${invOpts}</datalist>
+    <input type="number" class="entry-input" id="posQty${idx}" placeholder="Qty" min="0" value="1" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOSTotal()"/>
+    <input type="number" class="entry-input" id="posPrice${idx}" placeholder="₱" min="0" step="0.01" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOSTotal()"/>
+    <button onclick="this.parentElement.remove();updatePOSTotal()" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:1rem;">✕</button>`;
+  document.getElementById('posSaleLines').appendChild(div);
+}
+function onPOSItemPick(idx) {
+  const input = document.getElementById('posName'+idx);
+  const match = (_inventory||[]).find(i=>i.name===input.value);
+  if (match) {
+    input.dataset.itemId = match.id;
+    if (!document.getElementById('posPrice'+idx).value || +document.getElementById('posPrice'+idx).value===0)
+      document.getElementById('posPrice'+idx).value = match.cost||0;
+  } else {
+    input.dataset.itemId = '';
+  }
+}
+function updatePOSTotal() {
+  let sub = 0;
+  _posLineRows.forEach(idx=>{
+    const q = document.getElementById('posQty'+idx), p = document.getElementById('posPrice'+idx);
+    if (q && p) sub += (+q.value||0)*(+p.value||0);
+  });
+  const disc = +document.getElementById('posDiscount').value||0;
+  setEl('posSaleTotal', 'Total: ₱' + Math.max(0, sub-disc).toLocaleString());
+}
+async function submitPOSSale() {
+  const lines = [];
+  _posLineRows.forEach(idx=>{
+    const nameEl = document.getElementById('posName'+idx);
+    if (nameEl && nameEl.value.trim()) {
+      lines.push({
+        itemId: nameEl.dataset.itemId || 'custom',
+        itemName: nameEl.value.trim(),
+        qty: +document.getElementById('posQty'+idx).value||0,
+        unitPrice: +document.getElementById('posPrice'+idx).value||0
+      });
+    }
+  });
+  if (lines.length === 0) { showToast('Add at least one item', 'red'); return; }
+  const params = new URLSearchParams({
+    action:'cfPOSSale', token: sessionToken,
+    customer: document.getElementById('posCustomer').value.trim(),
+    method: document.getElementById('posSaleMethod').value,
+    discount: document.getElementById('posDiscount').value||0,
+    lines: JSON.stringify(lines)
+  });
+  try {
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ Sale complete — ₱' + json.total.toLocaleString(), 'gold');
+    posPrintReceipt(json.id);
+    // reset
+    document.getElementById('posSaleLines').innerHTML = '';
+    document.getElementById('posCustomer').value = '';
+    document.getElementById('posDiscount').value = '0';
+    _posLineRows = []; addPOSLine(); updatePOSTotal();
+    if (typeof loadInventory==='function') loadInventory(); // refresh stock counts
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+// ---- History ----
+async function loadPOSHistory() {
+  document.getElementById('posHistory').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);"><div class="spinner-lg"></div>Loading…</div>';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfPOSList&token=' + encodeURIComponent(sessionToken) + '&limit=100&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    _posSales = json.sales || [];
+    renderPOSHistory();
+  } catch(e) {
+    document.getElementById('posHistory').innerHTML = '<div style="color:#ff6b6b;text-align:center;padding:2rem;">Error: ' + e.message + '</div>';
+  }
+}
+function renderPOSHistory() {
+  const todayStr = new Date().toLocaleDateString('en-US');
+  const todayTotal = _posSales.filter(s=>{ const d=new Date(s.timestamp); return d.toLocaleDateString('en-US')===todayStr; }).reduce((a,s)=>a+s.total,0);
+  setEl('posToday', '₱' + Math.round(todayTotal).toLocaleString());
+  setEl('posCount', _posSales.length);
+  setEl('posTotal', '₱' + Math.round(_posSales.reduce((a,s)=>a+s.total,0)).toLocaleString());
+
+  const c = document.getElementById('posHistory');
+  if (_posSales.length === 0) { c.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);">No transactions yet.</div>'; return; }
+  c.innerHTML = _posSales.map(s => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.75rem;">
+      <span style="font-size:1.2rem;">${s.type==='Payment'?'💰':'🛍️'}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(s.client||'Walk-in')} ${s.ref?'· '+escapeHtml(s.ref):''}</div>
+        <div style="font-size:0.7rem;color:var(--muted);">${escapeHtml(s.type)} · ${escapeHtml(s.method)} · ${escapeHtml(s.timestamp||'')}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-weight:700;color:var(--gold);">₱${s.total.toLocaleString()}</div>
+        <button onclick="posPrintReceipt('${s.id}')" style="background:var(--card);border:1px solid var(--border2);color:var(--gold);padding:2px 8px;border-radius:5px;font-size:0.64rem;cursor:pointer;margin-top:2px;">🧾 Receipt</button>
+      </div>
+    </div>`).join('');
+}
+
+// ---- Printable receipt ----
+async function posPrintReceipt(id) {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfPOSReceipt&token=' + encodeURIComponent(sessionToken) + '&id=' + encodeURIComponent(id) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    const s = json.sale, lines = json.lines||[];
+    const w = window.open('', '_blank', 'width=380,height=600');
+    const lineRows = lines.length ? lines.map(l=>`<div class="r"><span>${escapeHtml(l.itemName)} ×${l.qty}</span><span>₱${l.lineTotal.toLocaleString()}</span></div>`).join('') : '';
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${escapeHtml(s.id)}</title>
+      <style>
+        body{font-family:'Courier New',monospace;padding:18px;max-width:300px;margin:0 auto;color:#000;font-size:13px;}
+        h2{text-align:center;font-size:1.1rem;margin:0;color:#8B4513;font-family:Georgia,serif;}
+        .sub{text-align:center;font-size:0.7rem;color:#555;margin-bottom:12px;}
+        .r{display:flex;justify-content:space-between;padding:3px 0;}
+        .div{border-top:1px dashed #999;margin:8px 0;}
+        .tot{font-weight:bold;font-size:1.05rem;}
+        .ft{text-align:center;font-size:0.7rem;color:#555;margin-top:14px;}
+        @media print{.noprint{display:none;}}
+      </style></head><body>
+      <h2>${escapeHtml(json.businessName||'Appetina')}</h2>
+      <div class="sub">OFFICIAL RECEIPT</div>
+      <div class="r"><span>Receipt</span><span>${escapeHtml(s.id)}</span></div>
+      <div class="r"><span>Date</span><span>${escapeHtml(s.timestamp||'')}</span></div>
+      <div class="r"><span>Type</span><span>${escapeHtml(s.type)}</span></div>
+      ${s.ref?`<div class="r"><span>Booking</span><span>${escapeHtml(s.ref)}</span></div>`:''}
+      <div class="r"><span>Customer</span><span>${escapeHtml(s.client||'Walk-in')}</span></div>
+      <div class="div"></div>
+      ${lineRows}
+      ${lineRows?'<div class="div"></div>':''}
+      ${s.discount>0?`<div class="r"><span>Subtotal</span><span>₱${s.subtotal.toLocaleString()}</span></div><div class="r"><span>Discount</span><span>-₱${s.discount.toLocaleString()}</span></div>`:''}
+      <div class="r tot"><span>${s.type==='Payment'?'AMOUNT PAID':'TOTAL'}</span><span>₱${s.total.toLocaleString()}</span></div>
+      <div class="r"><span>Method</span><span>${escapeHtml(s.method)}</span></div>
+      <div class="ft">Thank you for choosing ${escapeHtml(json.businessName||'Appetina')}!<br>This is a system-generated receipt.</div>
+      <div style="text-align:center;margin-top:14px;" class="noprint"><button onclick="window.print()" style="padding:8px 20px;background:#8B4513;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨 Print</button></div>
+      </body></html>`);
+    w.document.close();
+  } catch(e) { showToast('Receipt error: ' + e.message, 'red'); }
 }
 
 // =============================================================
@@ -3590,6 +3981,9 @@ function openShiftModal() {
   evSel.innerHTML = '<option value="">— none —</option>' + (allBookings||[]).filter(b=>b['Status']==='Confirmed'||b['Status']==='Done').map(b=>`<option value="${b['Reference Number']||b['REF']||''}">${escapeHtml(b['Client Name']||'')} — ${escapeHtml(b['Event Date']||'')}</option>`).join('');
   const { monday } = weekRange(_weekOffset);
   document.getElementById('shfDate').value = fmtDate(monday);
+  // Block past dates only when scheduling current/future weeks; allow back-fill
+  // of past shifts (needed for payroll) when viewing a previous week.
+  document.getElementById('shfDate').min = (_weekOffset >= 0) ? todayISO() : '';
   document.getElementById('shfStart').value = '08:00';
   document.getElementById('shfEnd').value = '17:00';
   document.getElementById('shiftOverlay').style.display = 'flex';
@@ -3854,7 +4248,8 @@ function openPOModal() {
   sel.innerHTML = _suppliers.length
     ? _suppliers.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')
     : '<option value="">— add a supplier first —</option>';
-  document.getElementById('poExpected').value = '';
+  document.getElementById('poExpected').value = todayISO();
+  document.getElementById('poExpected').min = todayISO();
   _poLineRows = [];
   document.getElementById('poLines').innerHTML = '';
   addPOLine();
@@ -4888,6 +5283,18 @@ function renderAssets() {
 }
 
 function openAddAssetModal() {
+  // New assets use the SAME workflow as inventory (incl. barcode/RFID scan).
+  // Open the inventory item modal pre-set to an asset category so it auto-syncs.
+  openAddInvModal();
+  // Default to Equipment (an auto-asset category) so asset fields show immediately
+  const catSel = document.getElementById('invCategory');
+  if (catSel) { catSel.value = 'equipment'; onInvCategoryChange(); }
+  const title = document.getElementById('invModalTitle');
+  if (title) title.textContent = '🏛️ Add Asset / Inventory';
+}
+
+// Old standalone asset-add (kept for reference; no longer wired to the button)
+function openAddAssetModalLegacy() {
   _editingAsset = null;
   document.getElementById('assetModalTitle').textContent = '🏛️ Add Asset';
   document.getElementById('assetDeleteBtn').style.display = 'none';
@@ -5268,6 +5675,10 @@ function renderDashboard() {
 }
 
 function setEl(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+// Today's date as YYYY-MM-DD for date inputs
+function todayISO() { return new Date().toLocaleDateString('en-CA'); }
+// Default a date input to today if it's currently empty
+function defaultToday(id) { const el = document.getElementById(id); if (el && !el.value) el.value = todayISO(); }
 
 function renderSmartAlerts(bookings, pending, upcoming) {
   const alerts = [];
