@@ -552,6 +552,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   padding:0.25rem 0.6rem;font-size:0.7rem;cursor:pointer;font-family:inherit;flex-shrink:0;
 }
 #payBalChip{font-size:0.78rem;font-weight:800;padding:0.3rem 0.7rem;border-radius:8px;white-space:nowrap;}
+.setup-chip{background:rgba(79,163,255,0.15);color:#4fa3ff;border:1px solid #4fa3ff;font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:6px;letter-spacing:0.04em;vertical-align:middle;}
 </style>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -609,6 +610,9 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <div class="nv-group"><div class="nv-group-lbl">People &amp; Automation</div>
         <button class="nav-tab" id="tabStaff" onclick="switchTab('staff')"><span class="nv-ico">👥</span><span class="nv-lbl">Staff</span></button>
         <button class="nav-tab" id="tabAgents" onclick="switchTab('agents')"><span class="nv-ico">🤖</span><span class="nv-lbl">Agents</span></button>
+      </div>
+      <div class="nv-group"><div class="nv-group-lbl">System</div>
+        <button class="nav-tab" id="tabConfig" onclick="switchTab('config')"><span class="nv-ico">⚙️</span><span class="nv-lbl">Configuration</span></button>
       </div>
     </nav>
   </aside>
@@ -1420,6 +1424,50 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
         </div>
       </div>
       <div id="posHistory"></div>
+    </div>
+  </div>
+
+  <!-- CONFIGURATION VIEW -->
+  <div id="configView" class="main" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">⚙️ Pricing Configuration</h2>
+      <button class="refresh-btn" onclick="loadPricingConfig()">↻ Reload</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;">Everything here is saved to Google Sheets and used live by the booking app. 🍽️ Food packages include the full menu &amp; buffet; 🛠️ Setup-Only is rentals &amp; styling with no food.</p>
+
+    <div class="exec-section" style="border-left:4px solid #7cb342;">
+      <div class="exec-section-title">🍽️ Food Packages <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· Appetina Config sheet</span></div>
+      <div style="overflow-x:auto;"><table style="min-width:520px;width:100%;" id="cfgPkgTable">
+        <thead><tr><th>Label</th><th>Price (₱)</th><th>Pax</th><th>Active</th><th></th></tr></thead>
+        <tbody id="cfgPkgBody"></tbody>
+      </table></div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+        <button class="refresh-btn" onclick="cfgAddPkgRow()">+ Add Package</button>
+        <button class="refresh-btn" style="background:#7cb342;color:#fff;border-color:#7cb342;" onclick="cfgSavePackages()">💾 Save Packages</button>
+      </div>
+      <p style="font-size:0.68rem;color:var(--muted);margin-top:0.5rem;">The "Addon Price/Head" row sets the food add-on rate. "Custom" (pax 0) enables the custom card.</p>
+    </div>
+
+    <div class="exec-section" style="border-left:4px solid #4fa3ff;">
+      <div class="exec-section-title">🧮 Custom Package Rates</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem;max-width:560px;">
+        <div><label class="entry-label">Rate below threshold (₱/guest)</label><input type="number" class="entry-input" id="cfgCustBelow" min="1"/></div>
+        <div><label class="entry-label">Rate at/above (₱/guest)</label><input type="number" class="entry-input" id="cfgCustAbove" min="1"/></div>
+        <div><label class="entry-label">Guest threshold</label><input type="number" class="entry-input" id="cfgCustTh" min="1"/></div>
+      </div>
+      <button class="refresh-btn" style="background:#4fa3ff;color:#fff;border-color:#4fa3ff;margin-top:0.75rem;" onclick="cfgSaveCustom()">💾 Save Custom Rates</button>
+    </div>
+
+    <div class="exec-section" style="border-left:4px solid var(--gold);">
+      <div class="exec-section-title">🛠️ Setup-Only Rates <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· CF_SetupRates sheet · market column is reference only</span></div>
+      <div style="overflow-x:auto;"><table style="min-width:640px;width:100%;">
+        <thead><tr><th>Inclusion</th><th>Unit</th><th>Appetina ₱</th><th>Market ₱</th><th>Active</th><th></th></tr></thead>
+        <tbody id="cfgSetupBody"></tbody>
+      </table></div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+        <button class="refresh-btn" onclick="cfgAddSetupRow()">+ Add Inclusion</button>
+        <button class="refresh-btn" style="background:var(--gold);color:#0f0a06;border-color:var(--gold);" onclick="cfgSaveSetup()">💾 Save Setup Rates</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2351,7 +2399,7 @@ function renderTable(rows) {
       <td><span class="status-badge s-${st}">${st}</span></td>
       <td><div class="td-name">${str(b['Client Name'])||'--'}</div><div class="td-muted" style="font-size:0.75rem;">${str(b['Contact'])||''}</div></td>
       <td class="td-date">${formatDate(b['Event Date'])}</td>
-      <td class="td-muted">${str(b['Event Type'])||'--'}</td>
+      <td class="td-muted">${str(b['Event Type'])||'--'}${isSetupPkg(b)?' <span class="setup-chip">🛠️ SETUP</span>':''}</td>
       <td class="td-muted">${b['No. of Pax']||'--'}</td>
       <td class="td-price">\u20b1${total.toLocaleString()}</td>
       <td style="color:#ff6b6b;font-weight:600;">\u20b1${down.toLocaleString()}</td>
@@ -2470,7 +2518,7 @@ function openModal(idx) {
     <div class="detail-section">
       <div class="detail-section-title">\ud83d\udcb0 Pricing</div>
       <div class="detail-grid">
-        <div class="detail-item"><label>Package</label><span>${str(b['Package'])||'--'}</span></div>
+        <div class="detail-item"><label>Package</label><span>${isSetupPkg(b)?'<span class="setup-chip">🛠️ SETUP-ONLY</span> ':''}${str(b['Package'])||'--'}</span></div>
         <div class="detail-item"><label>Total</label><span class="val-big">\u20b1${total.toLocaleString()}</span></div>
         <div class="detail-item"><label>Downpayment (50%)</label><span class="val-down">\u20b1${down.toLocaleString()}</span></div>
         <div class="detail-item"><label>Balance Due</label><span>\u20b1${bal.toLocaleString()}</span></div>
@@ -2665,6 +2713,7 @@ function switchTab(tab) {
   document.getElementById('tabAgents').classList.toggle('active', tab === 'agents');
   document.getElementById('tabWorkflows').classList.toggle('active', tab === 'workflows');
   document.getElementById('tabPOS').classList.toggle('active', tab === 'pos');
+  document.getElementById('tabConfig').classList.toggle('active', tab === 'config');
   document.getElementById('dashboardView').style.display = tab === 'dashboard' ? 'block' : 'none';
   document.getElementById('bookingsView').style.display  = tab === 'bookings' ? 'block' : 'none';
   document.getElementById('calendarView').style.display  = tab === 'calendar' ? 'block' : 'none';
@@ -2681,6 +2730,7 @@ function switchTab(tab) {
   document.getElementById('agentsView').style.display = tab === 'agents' ? 'block' : 'none';
   document.getElementById('workflowsView').style.display = tab === 'workflows' ? 'block' : 'none';
   document.getElementById('posView').style.display = tab === 'pos' ? 'block' : 'none';
+  document.getElementById('configView').style.display = tab === 'config' ? 'block' : 'none';
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'calendar') renderCalendar();
   if (tab === 'feedback') loadFeedback();
@@ -2696,6 +2746,7 @@ function switchTab(tab) {
   if (tab === 'agents') loadAgents();
   if (tab === 'workflows') loadWorkflows();
   if (tab === 'pos') initPOS();
+  if (tab === 'config') loadPricingConfig();
 
   // Mobile: close the drawer after picking; keep active item visible in sidebar
   try {
@@ -3445,6 +3496,7 @@ async function initPOS() {
   // Ensure bookings are loaded for the searchable dropdown
   if (!allBookings || !allBookings.length) { try { await loadBookings(); } catch(e){} }
   buildPosClientPool();
+  loadPOSMenu();
 }
 
 function setPOSMode(mode, btn) {
@@ -3592,30 +3644,110 @@ async function submitPOSPayment() {
 }
 
 // ---- Direct sale ----
+let _posMenu = null; // grouped menu from the Appetina Menu sheet (incl POS-only items)
+
+async function loadPOSMenu() {
+  if (_posMenu) return;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfMenuFull&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (json.success) { _posMenu = json.menus || {}; rebuildPOSLineOptions(); }
+  } catch(e) { console.warn('POS menu load:', e); }
+}
+
+const POS_CAT_LABELS = { beef:'🥩 Beef', fish:'🐟 Fish', chicken:'🍗 Chicken', veggie:'🥦 Veggie', pasta:'🍝 Pasta', dessert:'🍰 Desserts', drinks:'🥤 Drinks' };
+
+function posLineOptionsHTML() {
+  let h = '<option value="">— Select item —</option>';
+  if (_posMenu) {
+    Object.keys(POS_CAT_LABELS).forEach(cat => {
+      const items = _posMenu[cat] || [];
+      if (!items.length) return;
+      h += `<optgroup label="${POS_CAT_LABELS[cat]}">`;
+      items.forEach(m => { h += `<option value="${escapeHtml(m.name)}" data-kind="menu" data-cat="${cat}">${escapeHtml(m.name)}${m.posOnly?' (POS)':''}</option>`; });
+      h += '</optgroup>';
+    });
+  }
+  const inv = (_inventory||[]);
+  if (inv.length) {
+    h += '<optgroup label="📦 Inventory (deducts stock)">';
+    inv.forEach(i => { h += `<option value="${escapeHtml(i.name)}" data-kind="inv" data-id="${i.id}" data-cost="${i.cost||0}">${escapeHtml(i.name)}</option>`; });
+    h += '</optgroup>';
+  }
+  h += '<optgroup label="➕ More"><option value="__addnew" data-kind="new">➕ Add new dish to menu…</option><option value="__custom" data-kind="custom">✏️ One-off custom item…</option></optgroup>';
+  return h;
+}
+
 function addPOSLine(prefill) {
   const idx = _posLineRows.length;
   _posLineRows.push(idx);
-  const invOpts = (_inventory||[]).map(i=>`<option value="${escapeHtml(i.name)}" data-id="${i.id}" data-cost="${i.cost||0}">`).join('');
   const div = document.createElement('div');
   div.style.cssText = 'display:grid;grid-template-columns:1fr 60px 90px 30px;gap:0.4rem;margin-bottom:0.4rem;align-items:center;';
   div.innerHTML = `
-    <input type="text" class="entry-input" list="posInv${idx}" id="posName${idx}" placeholder="Item" style="padding:0.45rem 0.6rem;font-size:0.82rem;" oninput="onPOSItemPick(${idx})"/>
-    <datalist id="posInv${idx}">${invOpts}</datalist>
+    <select class="entry-input pos-item-sel" id="posName${idx}" style="padding:0.45rem 0.6rem;font-size:0.82rem;" onchange="onPOSItemSel(${idx})">${posLineOptionsHTML()}</select>
     <input type="number" class="entry-input" id="posQty${idx}" placeholder="Qty" min="0" value="1" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOSTotal()"/>
     <input type="number" class="entry-input" id="posPrice${idx}" placeholder="₱" min="0" step="0.01" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOSTotal()"/>
     <button onclick="this.parentElement.remove();updatePOSTotal()" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:1rem;">✕</button>`;
   document.getElementById('posSaleLines').appendChild(div);
+  if (!_posMenu) loadPOSMenu();
 }
-function onPOSItemPick(idx) {
-  const input = document.getElementById('posName'+idx);
-  const match = (_inventory||[]).find(i=>i.name===input.value);
-  if (match) {
-    input.dataset.itemId = match.id;
-    if (!document.getElementById('posPrice'+idx).value || +document.getElementById('posPrice'+idx).value===0)
-      document.getElementById('posPrice'+idx).value = match.cost||0;
-  } else {
-    input.dataset.itemId = '';
+
+function rebuildPOSLineOptions() {
+  _posLineRows.forEach(idx => {
+    const sel = document.getElementById('posName'+idx);
+    if (!sel) return;
+    const cur = sel.value, curId = sel.dataset.itemId || '';
+    sel.innerHTML = posLineOptionsHTML();
+    if (cur && cur !== '__addnew' && cur !== '__custom') {
+      // restore selection (add option back if it was custom)
+      if (![...sel.options].some(o=>o.value===cur)) {
+        const o = document.createElement('option'); o.value = cur; o.textContent = cur; sel.appendChild(o);
+      }
+      sel.value = cur; sel.dataset.itemId = curId;
+    }
+  });
+}
+
+async function onPOSItemSel(idx) {
+  const sel = document.getElementById('posName'+idx);
+  const opt = sel.options[sel.selectedIndex];
+  const kind = opt ? opt.dataset.kind : '';
+  const priceEl = document.getElementById('posPrice'+idx);
+
+  if (sel.value === '__addnew') {
+    const cat = (prompt('Category? (beef / fish / chicken / veggie / pasta / dessert / drinks)')||'').trim().toLowerCase();
+    if (!POS_CAT_LABELS[cat]) { showToast('Unknown category', 'red'); sel.value=''; return; }
+    const name = (prompt('New dish name?')||'').trim();
+    if (!name) { sel.value=''; return; }
+    try {
+      const res = await fetch(SCRIPT_URL + '?action=cfMenuItemAdd&token=' + encodeURIComponent(sessionToken)
+                  + '&category=' + encodeURIComponent(cat) + '&name=' + encodeURIComponent(name) + '&ts=' + Date.now());
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error||'Failed');
+      if (!_posMenu) _posMenu = {};
+      if (!_posMenu[cat]) _posMenu[cat] = [];
+      _posMenu[cat].push({ name:name, posOnly:true });
+      rebuildPOSLineOptions();
+      sel.value = name; sel.dataset.itemId = '';
+      showToast('✓ "' + name + '" saved to menu (POS-only — hidden from packages)', 'gold');
+    } catch(e) { showToast('Error: ' + e.message, 'red'); sel.value=''; }
+    return;
   }
+  if (sel.value === '__custom') {
+    const name = (prompt('Item name (one-off, not saved to menu)?')||'').trim();
+    sel.value = '';
+    if (!name) return;
+    const o = document.createElement('option'); o.value = name; o.textContent = '✏️ ' + name; sel.appendChild(o);
+    sel.value = name; sel.dataset.itemId = '';
+    return;
+  }
+  if (kind === 'inv') {
+    sel.dataset.itemId = opt.dataset.id || '';
+    if (!priceEl.value || +priceEl.value === 0) priceEl.value = opt.dataset.cost || 0;
+  } else {
+    sel.dataset.itemId = ''; // menu dishes are not stock items — no deduction
+  }
+  updatePOSTotal();
 }
 function updatePOSTotal() {
   let sub = 0;
@@ -6824,6 +6956,112 @@ async function recordModalPayment(fullBalance) {
   } finally {
     rec.disabled = false; full.disabled = false;
   }
+}
+
+
+// =============================================================
+//  CONFIGURATION TAB — packages / custom rates / setup rates
+//  All values persist to Google Sheets via Apps Script.
+// =============================================================
+function isSetupPkg(b) { return /^setup only/i.test(String(b['Package']||'')); }
+
+let _cfg = null;
+
+async function loadPricingConfig() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfPricingGet&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    _cfg = json;
+    renderCfgPackages(json.packages||[]);
+    document.getElementById('cfgCustBelow').value = json.customRates.below;
+    document.getElementById('cfgCustAbove').value = json.customRates.above;
+    document.getElementById('cfgCustTh').value = json.customRates.threshold;
+    renderCfgSetup(json.setupRates||[]);
+  } catch(e) { showToast('Config load error: ' + e.message, 'red'); }
+}
+
+function cfgPkgRowHTML(p) {
+  return `<tr>
+    <td><input class="entry-input cfg-lbl" value="${escapeHtml(p.label||'')}" style="min-width:150px;"/></td>
+    <td><input class="entry-input cfg-price" type="number" min="0" value="${p.price||0}" style="width:110px;"/></td>
+    <td><input class="entry-input cfg-pax" type="number" min="0" value="${p.pax||0}" style="width:80px;"/></td>
+    <td style="text-align:center;"><input type="checkbox" class="cfg-active" ${p.active?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);"/></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button></td>
+  </tr>`;
+}
+function renderCfgPackages(pkgs) {
+  document.getElementById('cfgPkgBody').innerHTML = pkgs.map(cfgPkgRowHTML).join('');
+}
+function cfgAddPkgRow() {
+  document.getElementById('cfgPkgBody').insertAdjacentHTML('beforeend', cfgPkgRowHTML({label:'',price:0,pax:0,active:true}));
+}
+async function cfgSavePackages() {
+  const rows = [...document.querySelectorAll('#cfgPkgBody tr')].map(tr => ({
+    label: tr.querySelector('.cfg-lbl').value.trim(),
+    price: +tr.querySelector('.cfg-price').value||0,
+    pax: +tr.querySelector('.cfg-pax').value||0,
+    active: tr.querySelector('.cfg-active').checked
+  })).filter(r=>r.label);
+  if (!rows.length) { showToast('Add at least one package', 'red'); return; }
+  try {
+    const params = new URLSearchParams({ action:'cfPricingSavePackages', token:sessionToken, rows:JSON.stringify(rows) });
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ ' + json.saved + ' package row(s) saved to Sheets — live on the booking app', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+async function cfgSaveCustom() {
+  const below = +document.getElementById('cfgCustBelow').value;
+  const above = +document.getElementById('cfgCustAbove').value;
+  const th = +document.getElementById('cfgCustTh').value;
+  if (!below || !above || !th) { showToast('All three values are required', 'red'); return; }
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfPricingSaveCustom&token=' + encodeURIComponent(sessionToken)
+                + '&below=' + below + '&above=' + above + '&threshold=' + th + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ Custom rates saved: ₱' + below + ' (<' + th + ') / ₱' + above + ' (' + th + '+)', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+function cfgSetupRowHTML(r) {
+  const units = ['guest','table','waiter'].map(u=>`<option ${r.unit===u?'selected':''}>${u}</option>`).join('');
+  return `<tr data-id="${escapeHtml(r.id||'')}">
+    <td><input class="entry-input su-lbl" value="${escapeHtml(r.label||'')}" style="min-width:200px;"/></td>
+    <td><select class="entry-input su-unit" style="width:90px;">${units}</select></td>
+    <td><input class="entry-input su-price" type="number" min="0" value="${r.price||0}" style="width:90px;"/></td>
+    <td><input class="entry-input su-market" type="number" min="0" value="${r.market||0}" style="width:90px;"/></td>
+    <td style="text-align:center;"><input type="checkbox" class="su-active" ${r.active?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);"/></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button></td>
+  </tr>`;
+}
+function renderCfgSetup(rates) {
+  document.getElementById('cfgSetupBody').innerHTML = rates.map(cfgSetupRowHTML).join('');
+}
+function cfgAddSetupRow() {
+  document.getElementById('cfgSetupBody').insertAdjacentHTML('beforeend',
+    cfgSetupRowHTML({id:'item'+Date.now(), label:'', unit:'guest', price:0, market:0, active:true}));
+}
+async function cfgSaveSetup() {
+  const rows = [...document.querySelectorAll('#cfgSetupBody tr')].map((tr,i) => ({
+    id: tr.dataset.id || ('item'+i),
+    label: tr.querySelector('.su-lbl').value.trim(),
+    unit: tr.querySelector('.su-unit').value,
+    price: +tr.querySelector('.su-price').value||0,
+    market: +tr.querySelector('.su-market').value||0,
+    active: tr.querySelector('.su-active').checked
+  })).filter(r=>r.label);
+  if (!rows.length) { showToast('Add at least one inclusion', 'red'); return; }
+  try {
+    const params = new URLSearchParams({ action:'cfSetupRatesSave', token:sessionToken, rows:JSON.stringify(rows) });
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ ' + json.saved + ' setup rate(s) saved — live on the booking app', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
 }
 
 </script>
