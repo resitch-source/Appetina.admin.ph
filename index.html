@@ -2181,6 +2181,20 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   </div>
 </div>
 
+<!-- EDIT BOOKING: MAP PIN PICKER -->
+<div class="overlay" id="editMapOverlay" style="display:none">
+  <div class="modal" style="max-width:640px;padding:1.1rem 1.25rem;">
+    <div class="modal-title">📍 Pin the Venue</div>
+    <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem;">Tap the map to drop a pin. The address is looked up automatically (OpenStreetMap) — you can still edit the text afterwards.</p>
+    <div id="editMapCanvas" style="height:320px;border-radius:10px;overflow:hidden;border:1px solid var(--border2);"></div>
+    <div id="editMapAddr" style="font-size:0.78rem;color:var(--gold);padding:0.6rem 0;min-height:2rem;">No pin yet — tap the map.</div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('editMapOverlay').style.display='none'">Cancel</button>
+      <button class="refresh-btn" id="editMapUseBtn" style="flex:1;background:#4fa3ff;color:#fff;border-color:#4fa3ff;" onclick="useEditPin()" disabled>✓ Use This Location</button>
+    </div>
+  </div>
+</div>
+
 <!-- EDIT BOOKING MODAL -->
 <div class="overlay" id="editBkOverlay" style="display:none">
   <div class="modal" style="max-width:680px;padding:1.25rem 1.5rem;">
@@ -7696,42 +7710,107 @@ async function dismissDupGroup(kind, gi) {
 }
 
 // =============================================================
-//  FULL BOOKING EDIT
+//  FULL BOOKING EDIT — dropdown+manual fields, map pin, smart menu
 // =============================================================
-const EDIT_BK_FIELDS = [
-  ['client','Client Name','text'], ['contact','Contact','text'], ['email','Email','email'],
-  ['eventType','Event Type','text'], ['occasion','Occasion','text'],
-  ['date','Event Date','date'], ['time','Time','time'],
-  ['venue','Venue','text'], ['motif','Motif','text'],
-  ['package','Package','text'], ['pax','Guests (Pax)','number'],
-  ['total','Total (₱)','number'], ['down','Downpayment (₱)','number'],
-  ['beef','Beef Dish','text'], ['fish','Fish Dish','text'], ['chicken','Chicken Dish','text'],
-  ['veggie','Veggie Dish','text'], ['pasta','Pasta','text'], ['desserts','Desserts','text'],
-  ['drinks','Drinks','text'], ['lechon','Lechon','text'],
-  ['addons','Add-ons','text'], ['notes','Notes','textarea']
-];
+const EDIT_BK_DEFAULT_EVENTS = ['Wedding','Birthday','Debut','Christening','Corporate Event','Anniversary','Graduation','Reunion','Other'];
+const EDIT_BK_DEFAULT_MOTIFS = ['Gold & White','Rustic','Elegant Black & Gold','Blush Pink','Royal Blue','Sage Green','Tropical','Classic White'];
+const EDIT_BK_MENU_KEYS = { beef:'beef', fish:'fish', chicken:'chicken', veggie:'veggie', pasta:'pasta', desserts:'dessert', drinks:'drinks' };
+let _editPin = '';
+let _editMap = null, _editMarker = null, _editPickAddr = '';
+
+function ebUniq(field) {
+  const s = new Set();
+  (allBookings||[]).forEach(b => { const v = (b[field]||'').toString().trim(); if (v) s.add(v); });
+  return [...s];
+}
+function ebDatalist(id, opts) {
+  return `<datalist id="${id}">${[...new Set(opts)].filter(Boolean).map(o=>`<option value="${escapeHtml(o)}">`).join('')}</datalist>`;
+}
+
 async function openEditBooking() {
   if (!currentRef) return;
   try {
+    if (!_posMenu) { try { await loadPOSMenu(); } catch(e){} }
     const res = await fetch(SCRIPT_URL + '?action=cfBookingGet&token=' + encodeURIComponent(sessionToken)
                 + '&ref=' + encodeURIComponent(currentRef) + '&ts=' + Date.now());
     const json = await res.json();
     if (!json.success) throw new Error(json.error||'Failed');
     const b = json.booking;
-    document.getElementById('editBkTitle').textContent = '✏️ Edit ' + b.ref + ' — all fields';
-    document.getElementById('editBkBody').innerHTML = EDIT_BK_FIELDS.map(([k,label,type]) => `
-      <div style="${type==='textarea'?'grid-column:1 / -1;':''}">
-        <label class="entry-label">${label}</label>
+    _editPin = b.venuePin || '';
+    const setupOnly = /^setup only/i.test(b.package||'');
+
+    const menuOpts = cat => ((_posMenu && _posMenu[cat]) || []).map(m=>m.name);
+    const pkgOpts = ebUniq('Package').concat(['Setup Only']);
+    const dl =
+      ebDatalist('ebdl_eventType', EDIT_BK_DEFAULT_EVENTS.concat(ebUniq('Event Type'))) +
+      ebDatalist('ebdl_motif', EDIT_BK_DEFAULT_MOTIFS.concat(ebUniq('Motif'))) +
+      ebDatalist('ebdl_package', pkgOpts) +
+      ebDatalist('ebdl_lechon', ['1 Whole Lechon (₱9,000)','None']) +
+      Object.keys(EDIT_BK_MENU_KEYS).map(k=>ebDatalist('ebdl_'+k, menuOpts(EDIT_BK_MENU_KEYS[k]))).join('');
+
+    const field = (k,label,type,listId,full) => `
+      <div style="${full?'grid-column:1 / -1;':''}">
+        <label class="entry-label">${label}${listId?' <span style="color:var(--muted);font-size:0.58rem;">(pick or type)</span>':''}</label>
         ${type==='textarea'
           ? `<textarea class="entry-input eb-f" data-k="${k}" style="min-height:64px;">${escapeHtml(String(b[k]||''))}</textarea>`
-          : `<input class="entry-input eb-f" data-k="${k}" type="${type}" value="${escapeHtml(String(b[k]??''))}"/>`}
-      </div>`).join('');
+          : `<input class="entry-input eb-f" data-k="${k}" type="${type}" ${listId?`list="${listId}" autocomplete="off"`:''} value="${escapeHtml(String(b[k]??''))}"/>`}
+      </div>`;
+
+    let body = dl;
+    body += field('client','Client Name','text');
+    body += field('contact','Contact','text');
+    body += field('email','Email','email');
+    body += field('eventType','Event Type','text','ebdl_eventType');
+    body += field('occasion','Occasion','text');
+    body += field('date','Event Date 📅','date');
+    body += field('time','Time 🕐','time');
+    body += `<div style="grid-column:1 / -1;">
+      <label class="entry-label">Venue / Address <span style="color:var(--muted);font-size:0.58rem;">(📍 pin on map)</span></label>
+      <div style="display:flex;gap:0.5rem;">
+        <input class="entry-input eb-f" data-k="venue" type="text" value="${escapeHtml(String(b.venue||''))}" style="flex:1;"/>
+        <button class="refresh-btn" onclick="openEditMap()" style="flex-shrink:0;">📍 Pin</button>
+      </div>
+      <div id="ebPinStatus" style="font-size:0.68rem;color:${_editPin?'#4fa3ff':'var(--muted)'};margin-top:0.3rem;">
+        ${_editPin ? '📍 Pinned — <a href="https://www.google.com/maps?q='+encodeURIComponent(_editPin)+'" target="_blank" style="color:#4fa3ff;">view on map</a>' : 'No map pin yet.'}
+      </div>
+    </div>`;
+    body += field('motif','Motif','text','ebdl_motif');
+    body += field('package','Package','text','ebdl_package');
+    body += field('pax','Guests (Pax)','number');
+    body += field('total','Total (₱)','number');
+    body += field('down','Downpayment (₱)','number');
+
+    if (setupOnly) {
+      body += `<div style="grid-column:1 / -1;background:rgba(79,163,255,0.08);border:1px solid #4fa3ff;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.72rem;color:#4fa3ff;">
+        🛠️ Setup-Only booking — no menu applies. <a href="#" onclick="ebShowMenu(this);return false;" style="color:#4fa3ff;font-weight:700;">Add a menu anyway →</a>
+      </div><div id="ebMenuWrap" style="display:none;grid-column:1 / -1;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">`;
+    } else {
+      body += `<div style="grid-column:1 / -1;font-size:0.72rem;color:var(--gold);border-top:1px solid var(--border);padding-top:0.6rem;">🍽️ Menu <span style="color:var(--muted);">(options from your Menu Lists — free text allowed)</span></div>
+        <div id="ebMenuWrap" style="grid-column:1 / -1;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">`;
+    }
+    body += field('beef','Beef Dish','text','ebdl_beef');
+    body += field('fish','Fish Dish','text','ebdl_fish');
+    body += field('chicken','Chicken Dish','text','ebdl_chicken');
+    body += field('veggie','Veggie Dish','text','ebdl_veggie');
+    body += field('pasta','Pasta','text','ebdl_pasta');
+    body += field('desserts','Desserts','text','ebdl_desserts');
+    body += field('drinks','Drinks','text','ebdl_drinks');
+    body += field('lechon','Lechon','text','ebdl_lechon');
+    body += `</div></div>`;
+    body += field('addons','Add-ons','text',null,true);
+    body += field('notes','Notes','textarea',null,true);
+
+    document.getElementById('editBkTitle').textContent = '✏️ Edit ' + b.ref + (setupOnly ? ' · 🛠️ Setup-Only' : '');
+    document.getElementById('editBkBody').innerHTML = body;
     document.getElementById('editBkOverlay').style.display = 'flex';
   } catch(e) { showToast('Error: ' + e.message, 'red'); }
 }
+function ebShowMenu(a) { document.getElementById('ebMenuWrap').style.display = 'block'; a.parentElement.style.display = 'none'; }
+
 async function saveEditBooking() {
   const fields = {};
   document.querySelectorAll('#editBkBody .eb-f').forEach(el => { fields[el.dataset.k] = el.value; });
+  fields.venuePin = _editPin;
   if (!confirm('Save all changes to ' + currentRef + '? This writes directly to the sheet.')) return;
   try {
     const params = new URLSearchParams({ action:'cfBookingUpdate', token:sessionToken,
@@ -7748,6 +7827,44 @@ async function saveEditBooking() {
     const idx = rows.findIndex(x => x['Booking Ref'] === ref);
     if (idx >= 0) openModal(idx);
   } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+// ── Venue map pin (Leaflet + OpenStreetMap reverse geocoding) ──
+function openEditMap() {
+  document.getElementById('editMapOverlay').style.display = 'flex';
+  setTimeout(() => {
+    if (!_editMap) {
+      _editMap = L.map('editMapCanvas').setView([8.228, 124.245], 13); // Iligan City default
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(_editMap);
+      _editMap.on('click', e => setEditPin(e.latlng.lat, e.latlng.lng));
+    }
+    _editMap.invalidateSize();
+    if (_editPin) {
+      const parts = _editPin.split(',').map(Number);
+      if (parts[0] && parts[1]) { _editMap.setView([parts[0],parts[1]], 15); setEditPin(parts[0], parts[1], true); }
+    }
+  }, 60);
+}
+async function setEditPin(lat, lng, silent) {
+  if (_editMarker) _editMarker.setLatLng([lat,lng]); else _editMarker = L.marker([lat,lng]).addTo(_editMap);
+  _editPin = lat.toFixed(6) + ',' + lng.toFixed(6);
+  document.getElementById('editMapUseBtn').disabled = false;
+  const addrEl = document.getElementById('editMapAddr');
+  if (!silent) addrEl.textContent = '📍 ' + _editPin + ' — looking up address…';
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng);
+    const j = await r.json();
+    _editPickAddr = j.display_name || '';
+    addrEl.textContent = '📍 ' + (_editPickAddr || _editPin);
+  } catch(e) { _editPickAddr = ''; addrEl.textContent = '📍 ' + _editPin + ' (address lookup unavailable)'; }
+}
+function useEditPin() {
+  const venueEl = document.querySelector('#editBkBody .eb-f[data-k="venue"]');
+  if (venueEl && _editPickAddr) venueEl.value = _editPickAddr;
+  const st = document.getElementById('ebPinStatus');
+  if (st) st.innerHTML = '📍 Pinned — <a href="https://www.google.com/maps?q=' + encodeURIComponent(_editPin) + '" target="_blank" style="color:#4fa3ff;">view on map</a>';
+  document.getElementById('editMapOverlay').style.display = 'none';
+  showToast('📍 Venue pinned', 'gold');
 }
 
 async function seedRecipes() {
