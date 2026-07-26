@@ -3718,7 +3718,7 @@ let _cfClientNames = null; // fetched once per session
 
 function buildPosClientPool() {
   const names = new Set();
-  (allBookings||[]).forEach(b => { const n=(b['Client Name']||'').trim(); if (n) names.add(n); });
+  (allBookings||[]).forEach(b => { const n=String(b['Client Name']||'').trim(); if (n) names.add(n); });
   const fill = () => {
     const dl = document.getElementById('posClientList');
     if (dl) dl.innerHTML = [...names].sort().map(n=>`<option value="${escapeHtml(n)}">`).join('');
@@ -7284,7 +7284,7 @@ async function loadClientsView() {
     const accounts = json.accounts || [];
 
     const byKey = {};
-    const keyOf = (email, name) => (email||'').toLowerCase().trim() || 'n:' + (name||'').toLowerCase().trim();
+    const keyOf = (email, name) => String(email||'').toLowerCase().trim() || 'n:' + String(name||'').toLowerCase().trim();
     accounts.forEach(a => {
       byKey[keyOf(a.email, a.name)] = {
         name:a.name, email:a.email, phone:a.phone, provider:a.provider,
@@ -7293,11 +7293,11 @@ async function loadClientsView() {
       };
     });
     (allBookings||[]).forEach(b => {
-      const name = (b['Client Name']||'').trim();
+      const name = String(b['Client Name']||'').trim();
       if (!name) return;
       const k = keyOf(b['Email'], name);
       if (!byKey[k]) {
-        byKey[k] = { name:name, email:(b['Email']||'').trim(), phone:(b['Contact']||'').trim(),
+        byKey[k] = { name:name, email:String(b['Email']||'').trim(), phone:String(b['Contact']||'').trim(),
                      provider:'', lastLogin:'', address:'', pin:'', registered:false,
                      bookings:[], spend:0, lastEvent:'' };
       }
