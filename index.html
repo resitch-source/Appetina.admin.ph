@@ -69,6 +69,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* -- LAYOUT -- */
 #app{display:none;min-height:100vh;}
+html,body{overscroll-behavior-y:none;}
 #app.visible{display:block;}
 .topbar{
   background:var(--surface);border-bottom:1px solid var(--border2);
@@ -553,6 +554,45 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 }
 #payBalChip{font-size:0.78rem;font-weight:800;padding:0.3rem 0.7rem;border-radius:8px;white-space:nowrap;}
 .setup-chip{background:rgba(79,163,255,0.15);color:#4fa3ff;border:1px solid #4fa3ff;font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:6px;letter-spacing:0.04em;vertical-align:middle;}
+/* ============ MOBILE FIT & STACKING v3 ============ */
+/* Modals must beat Leaflet (panes ~400, controls ~1000), the sticky
+   topbar (500), and the sidebar/drawer (600). One decisive layer: */
+.overlay, #trendsOverlay { z-index: 5000 !important; }
+.toast { z-index: 6000 !important; }
+
+/* Contain each Leaflet map's internal z-index stack so it can never
+   escape above page chrome or modals. */
+#deliveryMap, .leaflet-container { isolation: isolate; z-index: 1; }
+
+/* Modals: never taller or wider than the screen; scroll inside */
+.overlay > .modal, .overlay > .modal-box, #trendsOverlay > div {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@supports not (height: 100dvh) {
+  .overlay > .modal, .overlay > .modal-box, #trendsOverlay > div { max-height: calc(100vh - 2rem); }
+}
+
+@media (max-width: 640px) {
+  .overlay { padding: 0.6rem 0.45rem; align-items: flex-start; }
+  .overlay > .modal, .overlay > .modal-box {
+    width: 100%; max-width: 100% !important;
+    border-radius: 12px;
+    max-height: calc(100dvh - 1.2rem);
+  }
+  .modal-header { padding: 0.9rem 1rem; }
+  /* Calendar: keep 7 readable columns, scroll sideways instead of crushing */
+  .cal-grid { grid-template-columns: repeat(7, minmax(84px, 1fr)); overflow-x: auto; }
+  .cal-cell { min-height: 72px; }
+  /* Delivery layout children never exceed the viewport */
+  #deliveryLayout > * { min-width: 0; }
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  /* Tablets: modals use most of the screen comfortably */
+  .overlay > .modal, .overlay > .modal-box { max-width: min(720px, calc(100vw - 2rem)); }
+}
+/* ============ end MOBILE FIT & STACKING v3 ============ */
 </style>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -595,6 +635,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
         <button class="nav-tab" id="tabCalendar" onclick="switchTab('calendar')"><span class="nv-ico">📅</span><span class="nv-lbl">Calendar</span></button>
         <button class="nav-tab" id="tabPOS" onclick="switchTab('pos')"><span class="nv-ico">💳</span><span class="nv-lbl">POS</span></button>
         <button class="nav-tab" id="tabFeedback" onclick="switchTab('feedback')"><span class="nv-ico">⭐</span><span class="nv-lbl">Reviews</span></button>
+        <button class="nav-tab" id="tabClients" onclick="switchTab('clients')"><span class="nv-ico">👥</span><span class="nv-lbl">Clients</span></button>
       </div>
       <div class="nv-group"><div class="nv-group-lbl">Operations</div>
         <button class="nav-tab" id="tabDelivery" onclick="switchTab('delivery')"><span class="nv-ico">🚚</span><span class="nv-lbl">Delivery</span></button>
@@ -613,6 +654,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       </div>
       <div class="nv-group"><div class="nv-group-lbl">System</div>
         <button class="nav-tab" id="tabConfig" onclick="switchTab('config')"><span class="nv-ico">⚙️</span><span class="nv-lbl">Configuration</span></button>
+        <button class="nav-tab" id="tabDataq" onclick="switchTab('dataq')"><span class="nv-ico">🧹</span><span class="nv-lbl">Data Quality</span></button>
       </div>
     </nav>
   </aside>
@@ -1469,13 +1511,84 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
         <button class="refresh-btn" style="background:var(--gold);color:#0f0a06;border-color:var(--gold);" onclick="cfgSaveSetup()">💾 Save Setup Rates</button>
       </div>
     </div>
+
+    <div class="exec-section" style="border-left:4px solid #e57373;">
+      <div class="exec-section-title">🍽️ Menu Lists <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· Appetina Menu sheet · "In Package" controls the booking app</span></div>
+      <div style="display:flex;gap:1rem;font-size:0.68rem;color:var(--muted);margin-bottom:0.8rem;flex-wrap:wrap;">
+        <span>📦 <strong>In Package</strong> = clients can pick it when booking</span>
+        <span>💳 <strong>POS</strong> = sellable in Direct Sale</span>
+        <span>⭐ <strong>Best</strong> = marked best-seller</span>
+        <span>Neither ticked = disabled everywhere</span>
+      </div>
+      <div id="menuCfgBody"></div>
+      <button class="refresh-btn" style="background:#e57373;color:#fff;border-color:#e57373;margin-top:0.75rem;" onclick="menuCfgSave()">💾 Save Menu Lists</button>
+    </div>
+
+    <div class="exec-section" style="border-left:4px solid #f4a93b;">
+      <div class="exec-section-title">🔔 Notifications <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· enable/disable + schedule each one</span></div>
+      <div id="notifTriggerWarn" style="display:none;background:rgba(244,169,59,0.12);border:1px solid #f4a93b;color:#f4a93b;border-radius:8px;padding:0.6rem 0.9rem;font-size:0.78rem;margin-bottom:0.9rem;">
+        ⚠️ The daily scheduler is not installed yet — scheduled reminders won't send. In the Apps Script editor, run <strong>cfInstallTriggers</strong> once.
+      </div>
+      <label class="entry-label">Notification recipients (admin emails, comma-separated)</label>
+      <input class="entry-input" id="notifRecipients" placeholder="you@email.com, partner@email.com" style="max-width:520px;margin-bottom:0.9rem;"/>
+      <div style="overflow-x:auto;"><table style="min-width:560px;width:100%;">
+        <thead><tr><th>Notification</th><th>To</th><th style="text-align:center;">Enabled</th><th>Days</th></tr></thead>
+        <tbody id="notifBody"></tbody>
+      </table></div>
+      <p style="font-size:0.68rem;color:var(--muted);margin-top:0.5rem;">"Days" = days <em>before</em> the event (or <em>after</em>, for the feedback request). Instant notifications ignore it. Sent daily ~7:00 AM, once per event per type.</p>
+      <div style="display:flex;gap:0.5rem;margin-top:0.6rem;flex-wrap:wrap;">
+        <button class="refresh-btn" style="background:#f4a93b;color:#0f0a06;border-color:#f4a93b;" onclick="notifSave()">💾 Save Notifications</button>
+        <button class="refresh-btn" onclick="notifTest()">✉️ Send Test Email</button>
+        <button class="refresh-btn" onclick="notifRunNow()">▶ Run Scheduler Now</button>
+      </div>
+    </div>
+
+    <div class="exec-section" style="border-left:4px solid #ba68c8;">
+      <div class="exec-section-title">📋 Planning Checklist <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· emailed with the checklist reminder</span></div>
+      <div id="chkListBody" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+        <button class="refresh-btn" onclick="chkAddRow()">+ Add Item</button>
+        <button class="refresh-btn" style="background:#ba68c8;color:#fff;border-color:#ba68c8;" onclick="chkSave()">💾 Save Checklist</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENTS VIEW -->
+  <div id="clientsView" class="main" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">👥 Client Accounts</h2>
+      <button class="refresh-btn" onclick="loadClientsView()">↻ Refresh</button>
+    </div>
+    <div class="exec-kpi-grid">
+      <div class="exec-kpi" style="border-left:4px solid var(--gold);"><div class="exec-kpi-label">Registered Accounts</div><div class="exec-kpi-value" id="clAccounts">—</div><div class="exec-kpi-sub">booking app sign-ups</div></div>
+      <div class="exec-kpi" style="border-left:4px solid #7cb342;"><div class="exec-kpi-label">With Bookings</div><div class="exec-kpi-value" id="clActive">—</div><div class="exec-kpi-sub">have booked at least once</div></div>
+      <div class="exec-kpi" style="border-left:4px solid #4fa3ff;"><div class="exec-kpi-label">Lifetime Value</div><div class="exec-kpi-value" id="clSpend">—</div><div class="exec-kpi-sub">total across accounts</div></div>
+    </div>
+    <div class="filter-bar">
+      <input class="filter-search" type="text" id="clSearch" placeholder="🔍  Search name, email, phone…" oninput="renderClientsTable()"/>
+    </div>
+    <div class="table-scroll" style="overflow-x:auto;"><table style="width:100%;min-width:720px;">
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Sign-in</th><th>Bookings</th><th>Total Spend</th><th>Last Event</th><th>Last Login</th></tr></thead>
+      <tbody id="clBody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <!-- DATA QUALITY VIEW -->
+  <div id="dataqView" class="main" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">🧹 Data Quality</h2>
+      <button class="refresh-btn" onclick="runDupScan()">🔍 Re-scan</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;">Duplicate detection across inventory, menu, bookings, clients, and accounts — transparent similarity analysis (normalization + fuzzy matching), so every match is explainable. Fixes are conservative: money data is never deleted.</p>
+    <div id="dupSummary"></div>
+    <div id="dupResults"></div>
   </div>
 </div>
 
 <!-- POS RECEIPT (printable) is generated in a popup window -->
 
 <!-- STAFF MODAL -->
-<div class="overlay" id="staffOverlay" style="display:none" onclick="if(event.target===this)closeStaffModal()">
+<div class="overlay" id="staffOverlay" style="display:none">
   <div class="modal" id="staffBox" style="max-width:460px;">
     <div class="modal-header"><div class="modal-title" id="staffModalTitle">👤 New Staff</div><button class="modal-close" onclick="closeStaffModal()">✕</button></div>
     <div style="padding:1.25rem;">
@@ -1499,7 +1612,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- SHIFT MODAL -->
-<div class="overlay" id="shiftOverlay" style="display:none" onclick="if(event.target===this)closeShiftModal()">
+<div class="overlay" id="shiftOverlay" style="display:none">
   <div class="modal" id="shiftBox" style="max-width:460px;">
     <div class="modal-header"><div class="modal-title">📅 Assign Shift</div><button class="modal-close" onclick="closeShiftModal()">✕</button></div>
     <div style="padding:1.25rem;">
@@ -1519,7 +1632,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- PAYROLL RUN MODAL -->
-<div class="overlay" id="payrollOverlay" style="display:none" onclick="if(event.target===this)closePayrollModal()">
+<div class="overlay" id="payrollOverlay" style="display:none">
   <div class="modal" id="payrollBox" style="max-width:520px;">
     <div class="modal-header"><div class="modal-title">💵 Run Payroll</div><button class="modal-close" onclick="closePayrollModal()">✕</button></div>
     <div style="padding:1.25rem;" id="payrollBody"></div>
@@ -1527,7 +1640,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- SUPPLIER MODAL -->
-<div class="overlay" id="supOverlay" style="display:none" onclick="if(event.target===this)closeSupplierModal()">
+<div class="overlay" id="supOverlay" style="display:none">
   <div class="modal" id="supBox" style="max-width:460px;">
     <div class="modal-header"><div class="modal-title">🏭 New Supplier</div><button class="modal-close" onclick="closeSupplierModal()">✕</button></div>
     <div style="padding:1.25rem;">
@@ -1550,7 +1663,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- PURCHASE ORDER MODAL -->
-<div class="overlay" id="poOverlay" style="display:none" onclick="if(event.target===this)closePOModal()">
+<div class="overlay" id="poOverlay" style="display:none">
   <div class="modal" id="poBox" style="max-width:600px;">
     <div class="modal-header"><div class="modal-title">📦 New Purchase Order</div><button class="modal-close" onclick="closePOModal()">✕</button></div>
     <div style="padding:1.25rem;">
@@ -1574,7 +1687,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- PO DETAIL / RECEIVE MODAL -->
-<div class="overlay" id="poDetailOverlay" style="display:none" onclick="if(event.target===this)closePODetail()">
+<div class="overlay" id="poDetailOverlay" style="display:none">
   <div class="modal" id="poDetailBox" style="max-width:560px;">
     <div class="modal-header"><div class="modal-title" id="poDetailTitle">Purchase Order</div><button class="modal-close" onclick="closePODetail()">✕</button></div>
     <div style="padding:1.25rem;" id="poDetailBody"></div>
@@ -1582,7 +1695,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- CHECKLIST BUILDER MODAL -->
-<div class="overlay" id="chkOverlay" style="display:none" onclick="if(event.target===this)closeChecklistModal()">
+<div class="overlay" id="chkOverlay" style="display:none">
   <div class="modal" id="chkBox" style="max-width:560px;">
     <div class="modal-header">
       <div class="modal-title">📋 New Checklist</div>
@@ -1613,7 +1726,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- RUN INSPECTION MODAL -->
-<div class="overlay" id="inspOverlay" style="display:none" onclick="if(event.target===this)closeInspModal()">
+<div class="overlay" id="inspOverlay" style="display:none">
   <div class="modal" id="inspBox" style="max-width:560px;">
     <div class="modal-header">
       <div class="modal-title" id="inspTitle">🔍 Run Inspection</div>
@@ -1624,7 +1737,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- NCR DETAIL MODAL -->
-<div class="overlay" id="ncrOverlay" style="display:none" onclick="if(event.target===this)closeNCRModal()">
+<div class="overlay" id="ncrOverlay" style="display:none">
   <div class="modal" id="ncrBox" style="max-width:520px;">
     <div class="modal-header">
       <div class="modal-title" id="ncrTitle">⚠️ NCR</div>
@@ -1635,7 +1748,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- NEW TICKET MODAL -->
-<div class="overlay" id="ticketOverlay" style="display:none" onclick="if(event.target===this)closeTicketModal()">
+<div class="overlay" id="ticketOverlay" style="display:none">
   <div class="modal" id="ticketBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title">🎫 New Ticket</div>
@@ -1682,7 +1795,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- TICKET DETAIL MODAL -->
-<div class="overlay" id="tkDetailOverlay" style="display:none" onclick="if(event.target===this)closeTicketDetail()">
+<div class="overlay" id="tkDetailOverlay" style="display:none">
   <div class="modal" id="tkDetailBox" style="max-width:560px;">
     <div class="modal-header">
       <div class="modal-title" id="tkDetailTitle">Ticket</div>
@@ -1693,7 +1806,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- NEW DELIVERY MODAL -->
-<div class="overlay" id="delivOverlay" style="display:none" onclick="if(event.target===this)closeDeliveryModal()">
+<div class="overlay" id="delivOverlay" style="display:none">
   <div class="modal" id="delivBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title">🚚 New Delivery</div>
@@ -1730,7 +1843,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- DELIVERY DETAIL / DRIVER LINK MODAL -->
-<div class="overlay" id="delivLinkOverlay" style="display:none" onclick="if(event.target===this)closeDelivLink()">
+<div class="overlay" id="delivLinkOverlay" style="display:none">
   <div class="modal" id="delivLinkBox" style="max-width:460px;">
     <div class="modal-header">
       <div class="modal-title">🔗 Driver Link</div>
@@ -1741,7 +1854,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- INVENTORY ITEM MODAL -->
-<div class="overlay" id="invOverlay" style="display:none" onclick="if(event.target===this)closeInvModal()">
+<div class="overlay" id="invOverlay" style="display:none">
   <div class="modal" id="invBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title" id="invModalTitle">📦 Add Item</div>
@@ -1862,7 +1975,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- SCANNER MODAL -->
-<div class="overlay" id="scanOverlay" style="display:none" onclick="if(event.target===this)closeScannerModal()">
+<div class="overlay" id="scanOverlay" style="display:none">
   <div class="modal" id="scanBox" style="max-width:480px;">
     <div class="modal-header">
       <div class="modal-title">📷 Scan Item</div>
@@ -1899,7 +2012,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- ADD LEDGER ENTRY MODAL -->
-<div class="overlay" id="entryOverlay" style="display:none" onclick="if(event.target===this)closeEntryModal()">
+<div class="overlay" id="entryOverlay" style="display:none">
   <div class="modal" id="entryBox" style="max-width:480px;">
     <div class="modal-header">
       <div class="modal-title">💰 Add Ledger Entry</div>
@@ -1947,7 +2060,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- ASSET MODAL -->
-<div class="overlay" id="assetOverlay" style="display:none" onclick="if(event.target===this)closeAssetModal()">
+<div class="overlay" id="assetOverlay" style="display:none">
   <div class="modal" id="assetBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title" id="assetModalTitle">🏛️ Add Asset</div>
@@ -2021,7 +2134,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- DETAIL MODAL -->
-<div class="overlay" id="modalOverlay" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="overlay" id="modalOverlay" style="display:none">
   <div class="modal" id="modalBox">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle">Booking Details</div>
@@ -2056,6 +2169,29 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       </select>
       <button class="save-status-btn" id="payRecordBtn" onclick="recordModalPayment(false)">💰 Record</button>
       <button class="save-status-btn" id="fullyPaidBtn" onclick="recordModalPayment(true)" style="background:#7cb342;border-color:#7cb342;">✓ Fully Paid</button>
+      <button class="save-status-btn" onclick="openKitchenSheet()" style="background:#ba68c8;border-color:#ba68c8;" title="Ingredients market list & prep sheet scaled to this event's guest count">👨‍🍳 Kitchen Sheet</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECIPE / INGREDIENTS MODAL -->
+<div class="overlay" id="recipeOverlay" style="display:none">
+  <div class="modal" style="max-width:640px;padding:1.25rem 1.5rem;">
+    <div class="modal-title" id="recipeTitle">🧾 Ingredients & Costing</div>
+    <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.8rem;">Quantities are <strong>per guest</strong>. Pick from inventory to link live cost &amp; stock, or type a free ingredient with a manual unit cost. Used for dish costing, event market lists, and kitchen prep sheets.</p>
+    <div style="display:grid;grid-template-columns:1fr 64px 70px 84px 26px;gap:0.4rem;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem;">
+      <span>Ingredient</span><span>Qty/pax</span><span>Unit</span><span>₱/unit</span><span></span>
+    </div>
+    <div id="recipeLines"></div>
+    <datalist id="recIngList"></datalist>
+    <button class="refresh-btn" style="width:100%;margin:0.5rem 0 0.8rem;" onclick="addRecipeLine()">+ Add Ingredient</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.9rem;">
+      <span style="font-size:0.78rem;color:var(--muted);">Estimated food cost per guest</span>
+      <strong style="color:var(--gold);font-size:1.1rem;" id="recipeCostPax">₱0.00</strong>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="refresh-btn" style="flex:1;" onclick="closeRecipeModal()">Cancel</button>
+      <button class="refresh-btn" style="flex:1;background:#7cb342;color:#fff;border-color:#7cb342;" onclick="saveRecipe()">💾 Save Recipe</button>
     </div>
   </div>
 </div>
@@ -2063,7 +2199,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 <div class="toast" id="toast"></div>
 
 <!-- MENU TRENDS MODAL -->
-<div id="trendsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;padding:2rem 1rem;overflow-y:auto;" onclick="if(event.target===this)document.getElementById('trendsOverlay').style.display='none'">
+<div id="trendsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;padding:2rem 1rem;overflow-y:auto;">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:640px;animation:slideUp 0.25s ease;">
     <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
       <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);">🤖 AI Menu Trends</div>
@@ -2094,19 +2230,38 @@ let sessionToken = '';
 let _sessionExpiry = 0;
 let _sessionTimer = null;
 
-// Try to restore session from sessionStorage (cleared on browser close)
+// Restore session from localStorage (survives pull-to-refresh AND mobile tab
+// discards; bounded by the 4h server-side token expiry).
+let _restoredSession = false;
 try {
-  const stored = sessionStorage.getItem('appetina_session');
+  const stored = localStorage.getItem('appetina_session') || sessionStorage.getItem('appetina_session');
   if (stored) {
     const obj = JSON.parse(stored);
     if (obj.expiresAt > Date.now()) {
       sessionToken = obj.token;
       _sessionExpiry = obj.expiresAt;
+      _restoredSession = true;
     } else {
+      localStorage.removeItem('appetina_session');
       sessionStorage.removeItem('appetina_session');
     }
   }
 } catch(e) { /* ignore */ }
+
+function enterApp() {
+  scheduleSessionExpiry();
+  const loginEl = document.getElementById('loginScreen');
+  const appEl   = document.getElementById('app');
+  if (loginEl) loginEl.remove();
+  if (appEl)   appEl.style.display = 'block';
+  loadBookings().then(() => {
+    if (typeof renderDashboard === 'function') renderDashboard();
+  });
+}
+// If a valid session was restored, skip the login screen entirely
+document.addEventListener('DOMContentLoaded', function() {
+  if (_restoredSession && sessionToken) enterApp();
+});
 
 // -- LOGIN ------------------------------------------------------
 async function doLogin() {
@@ -2137,27 +2292,18 @@ async function doLogin() {
       sessionToken = json.token;
       _sessionExpiry = Date.now() + (json.expiresIn * 1000);
 
-      // Save in sessionStorage (cleared on browser close, not localStorage which persists)
+      // Persist (localStorage survives reloads and mobile tab discards;
+      // the server still expires the token after 4h)
       try {
-        sessionStorage.setItem('appetina_session', JSON.stringify({
+        localStorage.setItem('appetina_session', JSON.stringify({
           token: sessionToken,
           expiresAt: _sessionExpiry
         }));
       } catch(e) { /* ignore */ }
 
-      // Auto-logout when session expires
-      scheduleSessionExpiry();
-
       // Clear password from memory
       if (passEl) passEl.value = '';
-
-      const loginEl = document.getElementById('loginScreen');
-      const appEl   = document.getElementById('app');
-      if (loginEl) loginEl.remove();
-      if (appEl)   appEl.style.display = 'block';
-      loadBookings().then(() => {
-        if (typeof renderDashboard === 'function') renderDashboard();
-      });
+      enterApp();
     } else {
       if (errEl)  errEl.textContent  = json.error || 'Login failed.';
       if (passEl) { passEl.value = ''; passEl.focus(); }
@@ -2189,6 +2335,7 @@ async function logout() {
   }
   sessionToken = '';
   _sessionExpiry = 0;
+  localStorage.removeItem('appetina_session');
   sessionStorage.removeItem('appetina_session');
   if (_sessionTimer) clearTimeout(_sessionTimer);
   window.location.reload();
@@ -2217,6 +2364,12 @@ async function loadBookings() {
     allBookings = json.bookings || [];
   } catch(e) {
     if (tbody) tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">\u26a0\ufe0f</div>Could not load bookings.<br><small>' + e.message + '</small></div></td></tr>';
+    if (/invalid|expired|token|unauthor/i.test(e.message||'')) {
+      try { localStorage.removeItem('appetina_session'); sessionStorage.removeItem('appetina_session'); } catch(_e){}
+      alert('Your session has expired. Please sign in again.');
+      window.location.reload();
+      return;
+    }
     showToast('Error loading bookings: ' + e.message, 'red');
     setSync('error', 'Sync failed — tap Sync to retry');
     return; // stop here -- don't call updateStats/applyFilters
@@ -2714,6 +2867,8 @@ function switchTab(tab) {
   document.getElementById('tabWorkflows').classList.toggle('active', tab === 'workflows');
   document.getElementById('tabPOS').classList.toggle('active', tab === 'pos');
   document.getElementById('tabConfig').classList.toggle('active', tab === 'config');
+  document.getElementById('tabClients').classList.toggle('active', tab === 'clients');
+  document.getElementById('tabDataq').classList.toggle('active', tab === 'dataq');
   document.getElementById('dashboardView').style.display = tab === 'dashboard' ? 'block' : 'none';
   document.getElementById('bookingsView').style.display  = tab === 'bookings' ? 'block' : 'none';
   document.getElementById('calendarView').style.display  = tab === 'calendar' ? 'block' : 'none';
@@ -2731,6 +2886,8 @@ function switchTab(tab) {
   document.getElementById('workflowsView').style.display = tab === 'workflows' ? 'block' : 'none';
   document.getElementById('posView').style.display = tab === 'pos' ? 'block' : 'none';
   document.getElementById('configView').style.display = tab === 'config' ? 'block' : 'none';
+  document.getElementById('clientsView').style.display = tab === 'clients' ? 'block' : 'none';
+  document.getElementById('dataqView').style.display = tab === 'dataq' ? 'block' : 'none';
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'calendar') renderCalendar();
   if (tab === 'feedback') loadFeedback();
@@ -2746,7 +2903,9 @@ function switchTab(tab) {
   if (tab === 'agents') loadAgents();
   if (tab === 'workflows') loadWorkflows();
   if (tab === 'pos') initPOS();
-  if (tab === 'config') loadPricingConfig();
+  if (tab === 'config') { loadPricingConfig(); loadNotifConfig(); loadMenuCfg(); }
+  if (tab === 'clients') loadClientsView();
+  if (tab === 'dataq') runDupScan();
 
   // Mobile: close the drawer after picking; keep active item visible in sidebar
   try {
@@ -7061,6 +7220,438 @@ async function cfgSaveSetup() {
     const json = await res.json();
     if (!json.success) throw new Error(json.error||'Failed');
     showToast('✓ ' + json.saved + ' setup rate(s) saved — live on the booking app', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+
+// =============================================================
+//  CLIENTS TAB — registered accounts + booking aggregates
+// =============================================================
+let _clAccounts = [];
+async function loadClientsView() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfAccountsList&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    _clAccounts = json.accounts || [];
+    setEl('clAccounts', _clAccounts.length);
+    setEl('clActive', _clAccounts.filter(a=>a.bookings>0).length);
+    setEl('clSpend', '₱' + Math.round(_clAccounts.reduce((s,a)=>s+(a.spend||0),0)).toLocaleString());
+    renderClientsTable();
+  } catch(e) {
+    document.getElementById('clBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ff6b6b;padding:2rem;">Error: ' + escapeHtml(e.message) + '</td></tr>';
+  }
+}
+const CL_PROVIDER_ICONS = { manual:'✉️ Email', google:'🟢 Google', facebook:'🔵 Facebook' };
+function renderClientsTable() {
+  const q = (document.getElementById('clSearch').value||'').toLowerCase();
+  const rows = _clAccounts.filter(a => !q || (a.name+' '+a.email+' '+a.phone).toLowerCase().includes(q));
+  document.getElementById('clBody').innerHTML = rows.length ? rows.map(a => `
+    <tr>
+      <td style="font-weight:600;">${escapeHtml(a.name||'—')}</td>
+      <td class="td-muted">${escapeHtml(a.email)}</td>
+      <td class="td-muted">${escapeHtml(a.phone||'—')}</td>
+      <td style="font-size:0.76rem;">${CL_PROVIDER_ICONS[a.provider]||escapeHtml(a.provider)}</td>
+      <td style="text-align:center;">${a.bookings||0}</td>
+      <td style="color:var(--gold);font-weight:600;">₱${Math.round(a.spend||0).toLocaleString()}</td>
+      <td class="td-muted" style="font-size:0.76rem;">${escapeHtml(a.lastEvent||'—')}</td>
+      <td class="td-muted" style="font-size:0.72rem;">${escapeHtml(String(a.lastLogin||'').split(',')[0])}</td>
+    </tr>`).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">No accounts yet — they appear when clients register on the booking app.</td></tr>';
+}
+
+
+// =============================================================
+//  CONFIGURATION: notifications + planning checklist
+// =============================================================
+let _notifRows = [];
+async function loadNotifConfig() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfNotifGet&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    _notifRows = json.notifications || [];
+    document.getElementById('notifRecipients').value = json.recipients || '';
+    document.getElementById('notifTriggerWarn').style.display = json.triggerInstalled ? 'none' : 'block';
+    document.getElementById('notifBody').innerHTML = _notifRows.map((n,i) => `
+      <tr data-key="${escapeHtml(n.key)}" data-label="${escapeHtml(n.label)}" data-aud="${escapeHtml(n.audience)}">
+        <td style="font-size:0.82rem;">${escapeHtml(n.label)}</td>
+        <td style="font-size:0.72rem;color:var(--muted);">${n.audience==='client'?'👤 Client':n.audience==='system'?'⚙️ System':'🛡️ Admins'}</td>
+        <td style="text-align:center;"><input type="checkbox" class="nf-en" ${n.enabled?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);"/></td>
+        <td>${['event_reminder_client','event_reminder_admin','checklist_reminder','payment_reminder','feedback_request','full_payment_request','auto_done'].includes(n.key)
+            ? `<input class="entry-input nf-days" type="number" min="0" max="60" value="${n.days}" style="width:70px;"/>`
+            : '<span style="color:var(--muted);font-size:0.72rem;">instant</span>'}</td>
+      </tr>`).join('');
+    renderChecklist(json.checklist || []);
+  } catch(e) { showToast('Notif config error: ' + e.message, 'red'); }
+}
+async function notifSave() {
+  const rows = [...document.querySelectorAll('#notifBody tr')].map(tr => ({
+    key: tr.dataset.key, label: tr.dataset.label, audience: tr.dataset.aud,
+    enabled: tr.querySelector('.nf-en').checked,
+    days: tr.querySelector('.nf-days') ? (+tr.querySelector('.nf-days').value||0) : 0
+  }));
+  try {
+    const params = new URLSearchParams({ action:'cfNotifSave', token:sessionToken,
+      rows:JSON.stringify(rows), recipients:document.getElementById('notifRecipients').value });
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ Notification settings saved to Sheets', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+async function notifTest() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfNotifTest&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ Test email sent — check your inbox', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+async function notifRunNow() {
+  showToast('Running scheduler…', 'gold');
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfNotifRunNow&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    showToast('✓ Scheduler: ' + (json.result||'done'), 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+function renderChecklist(items) {
+  document.getElementById('chkListBody').innerHTML = items.map(c => chkRowHTML(c)).join('');
+}
+function chkRowHTML(c) {
+  return `<div style="display:flex;gap:0.5rem;align-items:center;">
+    <input type="checkbox" class="ck-active" ${c.active?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);flex-shrink:0;" title="Active"/>
+    <input class="entry-input ck-item" value="${escapeHtml(c.item||'')}" style="flex:1;"/>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>
+  </div>`;
+}
+function chkAddRow() {
+  document.getElementById('chkListBody').insertAdjacentHTML('beforeend', chkRowHTML({item:'', active:true}));
+}
+async function chkSave() {
+  const rows = [...document.querySelectorAll('#chkListBody > div')].map(d => ({
+    item: d.querySelector('.ck-item').value.trim(), active: d.querySelector('.ck-active').checked
+  })).filter(r=>r.item);
+  try {
+    const params = new URLSearchParams({ action:'cfChecklistSave', token:sessionToken, rows:JSON.stringify(rows) });
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ ' + json.saved + ' checklist item(s) saved', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+
+// =============================================================
+//  CONFIGURATION: menu lists (grouped, in-package/POS toggles)
+// =============================================================
+const MENU_CFG_CATS = { beef:'🥩 Beef', fish:'🐟 Fish', chicken:'🍗 Chicken', veggie:'🥦 Veggie', pasta:'🍝 Pasta', dessert:'🍰 Desserts', drinks:'🥤 Drinks' };
+let _menuCfg = [];
+
+async function loadMenuCfg() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfMenuAdmin&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    _menuCfg = json.items || [];
+    renderMenuCfg();
+  } catch(e) { showToast('Menu config error: ' + e.message, 'red'); }
+}
+
+function menuCfgRowHTML(it) {
+  return `<div class="mc-row" data-cat="${escapeHtml(it.category)}" style="display:grid;grid-template-columns:1fr 76px 62px 52px 30px 26px;gap:0.4rem;align-items:center;margin-bottom:0.3rem;">
+    <input class="entry-input mc-name" value="${escapeHtml(it.name)}" style="padding:0.4rem 0.6rem;font-size:0.82rem;"/>
+    <label style="display:flex;align-items:center;gap:4px;font-size:0.66rem;color:var(--muted);cursor:pointer;"><input type="checkbox" class="mc-pkg" ${it.inPackage?'checked':''} style="width:15px;height:15px;accent-color:#7cb342;"/>📦 Pkg</label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:0.66rem;color:var(--muted);cursor:pointer;"><input type="checkbox" class="mc-pos" ${it.pos?'checked':''} style="width:15px;height:15px;accent-color:#4fa3ff;"/>💳 POS</label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:0.66rem;color:var(--muted);cursor:pointer;"><input type="checkbox" class="mc-best" ${it.best?'checked':''} style="width:15px;height:15px;accent-color:var(--gold);"/>⭐</label>
+    <button onclick="openRecipeModal(this)" title="Ingredients & costing" style="background:none;border:none;cursor:pointer;font-size:0.95rem;">🧾</button>
+    <button onclick="this.closest('.mc-row').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>
+  </div>`;
+}
+
+function renderMenuCfg() {
+  const box = document.getElementById('menuCfgBody');
+  box.innerHTML = Object.keys(MENU_CFG_CATS).map(cat => {
+    const items = _menuCfg.filter(m => m.category === cat);
+    return `<div style="margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
+        <span style="font-size:0.78rem;font-weight:700;color:var(--gold);">${MENU_CFG_CATS[cat]} <span style="color:var(--muted);font-weight:400;">(${items.length})</span></span>
+        <button class="refresh-btn" style="padding:0.2rem 0.6rem;font-size:0.66rem;" onclick="menuCfgAdd('${cat}')">+ dish</button>
+      </div>
+      <div class="mc-cat" data-cat="${cat}">${items.map(menuCfgRowHTML).join('') || '<div style="font-size:0.72rem;color:var(--muted);padding:0.3rem 0;">No dishes yet.</div>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function menuCfgAdd(cat) {
+  const holder = document.querySelector('.mc-cat[data-cat="' + cat + '"]');
+  const empty = holder.querySelector('div:not(.mc-row)');
+  if (empty && !empty.classList.contains('mc-row')) empty.remove();
+  holder.insertAdjacentHTML('beforeend', menuCfgRowHTML({ category:cat, name:'', inPackage:true, pos:true, best:false }));
+  const rows = holder.querySelectorAll('.mc-name'); rows[rows.length-1].focus();
+}
+
+async function menuCfgSave() {
+  const rows = [...document.querySelectorAll('#menuCfgBody .mc-row')].map(d => ({
+    category: d.dataset.cat,
+    name: d.querySelector('.mc-name').value.trim(),
+    inPackage: d.querySelector('.mc-pkg').checked,
+    pos: d.querySelector('.mc-pos').checked,
+    best: d.querySelector('.mc-best').checked
+  })).filter(r => r.name);
+  if (!rows.length) { showToast('Menu cannot be empty', 'red'); return; }
+  try {
+    const params = new URLSearchParams({ action:'cfMenuSave', token:sessionToken, rows:JSON.stringify(rows) });
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    _posMenu = null; // POS picker refreshes with the new lists
+    showToast('✓ ' + json.saved + ' dish(es) saved — live on booking app + POS', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+
+// =============================================================
+//  RECIPES: per-dish ingredients, costing, kitchen sheets
+// =============================================================
+let _recCtx = null; // {category, dish}
+let _recLineN = 0;
+
+async function openRecipeModal(btn) {
+  const row = btn.closest('.mc-row');
+  const dish = row.querySelector('.mc-name').value.trim();
+  const cat = row.dataset.cat;
+  if (!dish) { showToast('Name the dish first', 'red'); return; }
+  _recCtx = { category:cat, dish:dish };
+  document.getElementById('recipeTitle').textContent = '🧾 ' + dish + ' — Ingredients';
+  document.getElementById('recipeLines').innerHTML = '';
+  _recLineN = 0;
+  // Inventory datalist for linking
+  if (!_inventory || !_inventory.length) { try { await loadInventory(); } catch(e){} }
+  document.getElementById('recIngList').innerHTML = (_inventory||[])
+    .map(i=>`<option value="${escapeHtml(i.name)}" data-id="${i.id}" data-cost="${i.cost||0}" data-unit="${escapeHtml(i.unit||'')}">`).join('');
+  document.getElementById('recipeOverlay').style.display = 'flex';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfRecipeGet&token=' + encodeURIComponent(sessionToken)
+                + '&category=' + encodeURIComponent(cat) + '&dish=' + encodeURIComponent(dish) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (json.success && json.lines.length) json.lines.forEach(l => addRecipeLine(l));
+    else addRecipeLine();
+    updateRecipeCost();
+  } catch(e) { addRecipeLine(); }
+}
+function closeRecipeModal() { document.getElementById('recipeOverlay').style.display = 'none'; _recCtx = null; }
+
+function addRecipeLine(l) {
+  l = l || {};
+  const n = _recLineN++;
+  const div = document.createElement('div');
+  div.className = 'rec-line';
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 64px 70px 84px 26px;gap:0.4rem;margin-bottom:0.35rem;align-items:center;';
+  div.innerHTML = `
+    <input class="entry-input rec-ing" list="recIngList" value="${escapeHtml(l.ingredient||'')}" data-itemid="${escapeHtml(l.itemId||'')}"
+           placeholder="e.g. Beef brisket" style="padding:0.4rem 0.55rem;font-size:0.8rem;" oninput="onRecIngPick(this)"/>
+    <input class="entry-input rec-qty" type="number" min="0" step="0.001" value="${l.qtyPerPax||''}" placeholder="0.15" style="padding:0.4rem 0.4rem;font-size:0.8rem;" oninput="updateRecipeCost()"/>
+    <input class="entry-input rec-unit" value="${escapeHtml(l.unit||'')}" placeholder="kg" style="padding:0.4rem 0.5rem;font-size:0.8rem;"/>
+    <input class="entry-input rec-cost" type="number" min="0" step="0.01" value="${l.unitCost||''}" placeholder="0.00" style="padding:0.4rem 0.5rem;font-size:0.8rem;" oninput="updateRecipeCost()" ${l.linked?'title="Live cost from inventory"':''}/>
+    <button onclick="this.parentElement.remove();updateRecipeCost()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>`;
+  document.getElementById('recipeLines').appendChild(div);
+}
+function onRecIngPick(input) {
+  const opt = [...document.getElementById('recIngList').options].find(o=>o.value===input.value);
+  const line = input.parentElement;
+  if (opt) {
+    input.dataset.itemid = opt.dataset.id;
+    const costEl = line.querySelector('.rec-cost'), unitEl = line.querySelector('.rec-unit');
+    if (!costEl.value || +costEl.value===0) costEl.value = opt.dataset.cost||0;
+    if (!unitEl.value) unitEl.value = opt.dataset.unit||'';
+  } else { input.dataset.itemid = ''; }
+  updateRecipeCost();
+}
+function updateRecipeCost() {
+  let c = 0;
+  document.querySelectorAll('#recipeLines .rec-line').forEach(d => {
+    c += (+d.querySelector('.rec-qty').value||0) * (+d.querySelector('.rec-cost').value||0);
+  });
+  document.getElementById('recipeCostPax').textContent = '₱' + c.toFixed(2);
+}
+async function saveRecipe() {
+  if (!_recCtx) return;
+  const lines = [...document.querySelectorAll('#recipeLines .rec-line')].map(d => ({
+    ingredient: d.querySelector('.rec-ing').value.trim(),
+    itemId: d.querySelector('.rec-ing').dataset.itemid || '',
+    qtyPerPax: +d.querySelector('.rec-qty').value||0,
+    unit: d.querySelector('.rec-unit').value.trim(),
+    unitCost: +d.querySelector('.rec-cost').value||0
+  })).filter(l=>l.ingredient);
+  try {
+    const params = new URLSearchParams({ action:'cfRecipeSave', token:sessionToken,
+      category:_recCtx.category, dish:_recCtx.dish, lines:JSON.stringify(lines) });
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ Recipe saved — ' + json.saved + ' ingredient(s)', 'gold');
+    closeRecipeModal();
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+// ── Kitchen sheet (printable, scaled to the event) ──
+async function openKitchenSheet() {
+  if (!currentRef) return;
+  showToast('Building kitchen sheet…', 'gold');
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfKitchenSheet&token=' + encodeURIComponent(sessionToken)
+                + '&ref=' + encodeURIComponent(currentRef) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    const ev = json.event;
+    const w = window.open('', '_blank', 'width=760,height=800');
+    const mkRows = json.marketList.map(m=>`<tr>
+      <td>${escapeHtml(m.name)}</td><td>${m.need} ${escapeHtml(m.unit)}</td>
+      <td>${m.stock===null?'—':m.stock+' '+escapeHtml(m.unit)}</td>
+      <td style="color:${m.short>0?'#c0392b':'#27ae60'};font-weight:bold;">${m.short===null?'n/a':(m.short>0?'BUY '+m.short:'✓ stocked')}</td>
+      <td>₱${(m.estCost||0).toLocaleString()}</td></tr>`).join('');
+    const dishBlocks = json.perDish.map(d=>`
+      <h3 style="margin:14px 0 4px;color:#8B4513;">${escapeHtml(d.dish)} <span style="font-size:0.7rem;color:#999;">(${escapeHtml(d.category)})</span></h3>
+      <table><tr><th>Ingredient</th><th>Total Qty</th><th>Est Cost</th></tr>
+      ${d.lines.map(l=>`<tr><td>${escapeHtml(l.ingredient)}</td><td>${Math.round(l.qty*100)/100} ${escapeHtml(l.unit)}</td><td>₱${Math.round(l.cost).toLocaleString()}</td></tr>`).join('')}</table>`).join('');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kitchen Sheet ${escapeHtml(ev.ref)}</title>
+      <style>body{font-family:Georgia,serif;padding:24px;color:#222;max-width:700px;margin:0 auto;font-size:13px;}
+      h1{color:#8B4513;font-size:1.3rem;margin:0;}h2{font-size:1rem;color:#8B4513;border-bottom:2px solid #C9A84C;padding-bottom:4px;margin-top:20px;}
+      table{width:100%;border-collapse:collapse;margin-top:6px;}th,td{border:1px solid #ddd;padding:5px 8px;text-align:left;font-size:0.8rem;}
+      th{background:#f5ede2;}.meta{color:#666;font-size:0.8rem;margin:4px 0 0;}
+      .warn{background:#fdf3e3;border:1px solid #e0b050;padding:8px 12px;border-radius:6px;font-size:0.78rem;margin-top:10px;}
+      @media print{.noprint{display:none;}}</style></head><body>
+      <h1>👨‍🍳 ${escapeHtml(json.businessName)} — Kitchen Sheet</h1>
+      <p class="meta">${escapeHtml(ev.ref)} · ${escapeHtml(ev.client)} · ${escapeHtml(ev.date)}${ev.venue?' @ '+escapeHtml(ev.venue):''} · <strong>${ev.pax} guests</strong></p>
+      <p class="meta">Estimated food cost: <strong>₱${json.totalCost.toLocaleString()}</strong> (₱${json.costPerPax}/guest)</p>
+      ${json.missingRecipes.length?`<div class="warn">⚠️ No recipe defined yet for: ${json.missingRecipes.map(escapeHtml).join(', ')} — add ingredients in Configuration → Menu Lists → 🧾</div>`:''}
+      <h2>🛒 Market List (aggregated, vs stock)</h2>
+      <table><tr><th>Ingredient</th><th>Needed</th><th>In Stock</th><th>Action</th><th>Est Cost</th></tr>${mkRows||'<tr><td colspan=5>No linked ingredients.</td></tr>'}</table>
+      <h2>🍳 Prep by Dish</h2>${dishBlocks||'<p>No recipes.</p>'}
+      <div class="noprint" style="text-align:center;margin-top:18px;"><button onclick="window.print()" style="padding:8px 22px;background:#8B4513;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨 Print</button></div>
+      </body></html>`);
+    w.document.close();
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+
+// =============================================================
+//  DATA QUALITY — duplicate scan + one-click fixes
+// =============================================================
+let _dupData = null;
+const DUP_META = {
+  inventory:{ icon:'📦', title:'Inventory Items', fix:'merge' },
+  menu:{ icon:'🍽️', title:'Menu Dishes', fix:'dedup' },
+  bookings:{ icon:'📋', title:'Possible Double Bookings', fix:'cancel' },
+  clients:{ icon:'👥', title:'Client Records (CRM)', fix:'clients' },
+  accounts:{ icon:'🔐', title:'Sign-in Accounts', fix:'none' }
+};
+
+async function runDupScan() {
+  document.getElementById('dupResults').innerHTML = '<div style="text-align:center;padding:2.5rem;color:var(--muted);"><div class="spinner-lg"></div>Scanning all sheets for duplicates…</div>';
+  document.getElementById('dupSummary').innerHTML = '';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfDupScan&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Scan failed');
+    _dupData = json.groups;
+    renderDupResults(json.total);
+  } catch(e) {
+    document.getElementById('dupResults').innerHTML = '<div style="color:#ff6b6b;text-align:center;padding:2rem;">Error: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderDupResults(total) {
+  document.getElementById('dupSummary').innerHTML = total === 0
+    ? '<div style="background:rgba(124,179,66,0.1);border:1px solid #7cb342;border-radius:12px;padding:1.25rem;text-align:center;color:#bfe3a0;font-weight:600;">✅ No duplicates found — your data is clean.</div>'
+    : '<div style="background:rgba(244,169,59,0.1);border:1px solid #f4a93b;border-radius:12px;padding:1rem 1.25rem;color:#f4a93b;font-weight:700;margin-bottom:1rem;">' + total + ' potential duplicate group(s) found — review each below.</div>';
+  const box = document.getElementById('dupResults');
+  box.innerHTML = Object.keys(DUP_META).map(kind => {
+    const groups = _dupData[kind]||[];
+    if (!groups.length) return '';
+    const m = DUP_META[kind];
+    return `<div class="exec-section">
+      <div class="exec-section-title">${m.icon} ${m.title} <span style="font-size:0.7rem;color:var(--muted);font-weight:400;">· ${groups.length} group(s)</span></div>
+      ${groups.map((g,gi)=>renderDupGroup(kind,g,gi)).join('')}
+    </div>`;
+  }).join('') || '';
+}
+
+function renderDupGroup(kind, g, gi) {
+  const gid = kind + '_' + gi;
+  let rows = '';
+  if (kind === 'inventory') {
+    rows = g.items.map(it=>`<label style="display:flex;gap:0.6rem;align-items:center;padding:0.35rem 0;font-size:0.82rem;cursor:pointer;">
+      <input type="radio" name="keep_${gid}" value="${escapeHtml(it.id)}" ${it.id===g.keepSuggestion?'checked':''} style="accent-color:var(--gold);"/>
+      <span style="flex:1;">${escapeHtml(it.name)} <span style="color:var(--muted);font-size:0.7rem;">(${escapeHtml(it.cat)})</span></span>
+      <span style="color:var(--muted);font-size:0.74rem;">${it.qty} ${escapeHtml(it.unit)} · ₱${it.cost}</span></label>`).join('');
+  } else if (kind === 'menu') {
+    rows = g.items.map(it=>`<label style="display:flex;gap:0.6rem;align-items:center;padding:0.35rem 0;font-size:0.82rem;cursor:pointer;">
+      <input type="radio" name="keep_${gid}" value="${escapeHtml(it.name)}" ${it===g.items[0]?'checked':''} style="accent-color:var(--gold);"/>
+      <span style="flex:1;">${escapeHtml(it.name)}</span>
+      <span style="color:var(--muted);font-size:0.72rem;">Active: ${escapeHtml(it.active||'—')}</span></label>`).join('');
+  } else if (kind === 'bookings') {
+    rows = g.items.map(it=>`<label style="display:flex;gap:0.6rem;align-items:center;padding:0.35rem 0;font-size:0.82rem;cursor:pointer;">
+      <input type="radio" name="keep_${gid}" value="${escapeHtml(it.ref)}" ${it.ref===g.keepSuggestion?'checked':''} style="accent-color:var(--gold);"/>
+      <span style="flex:1;">${escapeHtml(it.ref)} · ${escapeHtml(it.client)}</span>
+      <span style="color:var(--muted);font-size:0.72rem;">${escapeHtml(it.date)} · ${escapeHtml(it.status)} · paid ₱${(it.down||0).toLocaleString()}</span></label>`).join('');
+  } else if (kind === 'clients') {
+    rows = g.items.map(it=>`<label style="display:flex;gap:0.6rem;align-items:center;padding:0.35rem 0;font-size:0.82rem;cursor:pointer;">
+      <input type="radio" name="keep_${gid}" value="${escapeHtml(it.name)}" ${it.name===g.keepSuggestion?'checked':''} style="accent-color:var(--gold);"/>
+      <span style="flex:1;">${escapeHtml(it.name)}</span>
+      <span style="color:var(--muted);font-size:0.72rem;">${escapeHtml(it.email||'no email')} · ${escapeHtml(it.phone||'no phone')}</span></label>`).join('');
+  } else {
+    rows = g.items.map(it=>`<div style="display:flex;gap:0.6rem;align-items:center;padding:0.35rem 0;font-size:0.82rem;">
+      <span style="flex:1;">${escapeHtml(it.name)}</span>
+      <span style="color:var(--muted);font-size:0.72rem;">${escapeHtml(it.email)} · ${escapeHtml(it.provider)} · last login ${escapeHtml(String(it.lastLogin||'').split(',')[0])}</span></div>`).join('');
+  }
+  const fixBtn = DUP_META[kind].fix === 'none' ? '' :
+    `<button class="refresh-btn" style="background:#7cb342;color:#fff;border-color:#7cb342;" onclick="applyDupFix('${kind}',${gi})">🔧 ${
+      kind==='inventory'?'Merge into selected':kind==='menu'?'Keep selected, remove others':kind==='bookings'?'Keep selected, cancel others':'Keep selected, remove others'}</button>`;
+  return `<div id="grp_${gid}" style="background:var(--surface);border:1px solid var(--border);border-left:4px solid #f4a93b;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
+    ${rows}
+    <div style="font-size:0.72rem;color:var(--muted);margin:0.5rem 0;">⚠️ ${escapeHtml(g.why||'')}<br>💡 ${escapeHtml(g.rec||'')}</div>
+    ${fixBtn}
+  </div>`;
+}
+
+async function applyDupFix(kind, gi) {
+  const g = _dupData[kind][gi];
+  const gid = kind + '_' + gi;
+  const sel = document.querySelector('input[name="keep_' + gid + '"]:checked');
+  if (!sel) { showToast('Pick which one to keep', 'red'); return; }
+  const keep = sel.value;
+  if (!confirm('Keep "' + keep + '" and fix the rest? This writes to your Google Sheet.')) return;
+  try {
+    let url;
+    if (kind === 'inventory') {
+      const mergeIds = g.items.map(i=>i.id).filter(id=>id!==keep);
+      url = SCRIPT_URL + '?action=cfDupMergeInventory&keepId=' + encodeURIComponent(keep) + '&mergeIds=' + encodeURIComponent(JSON.stringify(mergeIds));
+    } else if (kind === 'menu') {
+      url = SCRIPT_URL + '?action=cfDupMenuDedup&category=' + encodeURIComponent(g.category) + '&name=' + encodeURIComponent(keep);
+    } else if (kind === 'bookings') {
+      // Cancel every other ref via the existing status action (nothing deleted)
+      const losers = g.items.map(i=>i.ref).filter(r=>r!==keep);
+      for (const ref of losers) {
+        await fetch(SCRIPT_URL + '?action=updateStatus&token=' + encodeURIComponent(sessionToken) + '&ref=' + encodeURIComponent(ref) + '&status=Cancelled&ts=' + Date.now());
+      }
+      showToast('✓ ' + losers.length + ' duplicate booking(s) cancelled', 'gold');
+      document.getElementById('grp_' + gid).style.opacity = '0.4';
+      if (typeof loadBookings === 'function') loadBookings();
+      return;
+    } else if (kind === 'clients') {
+      const drops = g.items.map(i=>i.name).filter(n=>n!==keep);
+      url = SCRIPT_URL + '?action=cfDupMergeClients&keepName=' + encodeURIComponent(keep) + '&dropNames=' + encodeURIComponent(JSON.stringify(drops));
+    }
+    const res = await fetch(url + '&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Fix failed');
+    showToast('✓ Fixed — ' + (json.removed!==undefined?json.removed+' row(s) cleaned':'done'), 'gold');
+    document.getElementById('grp_' + gid).style.opacity = '0.4';
+    if (kind === 'inventory' && typeof loadInventory === 'function') loadInventory();
+    if (kind === 'menu') { _posMenu = null; }
   } catch(e) { showToast('Error: ' + e.message, 'red'); }
 }
 
