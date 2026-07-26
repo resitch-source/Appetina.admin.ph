@@ -635,7 +635,6 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       </div>
       <div class="nv-group"><div class="nv-group-lbl">Sales &amp; Clients</div>
         <button class="nav-tab" id="tabBookings" onclick="switchTab('bookings')"><span class="nv-ico">📋</span><span class="nv-lbl">Bookings</span></button>
-        <button class="nav-tab" id="tabCalendar" onclick="switchTab('calendar')"><span class="nv-ico">📅</span><span class="nv-lbl">Calendar</span></button>
         <button class="nav-tab" id="tabPOS" onclick="switchTab('pos')"><span class="nv-ico">💳</span><span class="nv-lbl">POS</span></button>
         <button class="nav-tab" id="tabFeedback" onclick="switchTab('feedback')"><span class="nv-ico">⭐</span><span class="nv-lbl">Reviews</span></button>
         <button class="nav-tab" id="tabClients" onclick="switchTab('clients')"><span class="nv-ico">👥</span><span class="nv-lbl">Clients</span></button>
@@ -755,6 +754,10 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <span id="syncTime"></span>
       <button id="syncBtn" onclick="loadBookings()" title="Sync now">↻ Sync</button>
     </div>
+    <div style="display:flex;gap:0.5rem;margin-bottom:0.9rem;">
+      <button class="filter-chip-bl active" id="bkViewGrid" onclick="setBkView('grid')">📋 Grid</button>
+      <button class="filter-chip-bl" id="bkViewCal" onclick="setBkView('calendar')">📅 Calendar</button>
+    </div>
     <div class="stats-row" id="statsRow">
       <div class="stat-card"><div class="stat-label">Total Bookings</div><div class="stat-value" id="sTot">—</div></div>
       <div class="stat-card"><div class="stat-label">New</div><div class="stat-value" id="sNew" style="color:#4fa3ff">—</div></div>
@@ -808,10 +811,9 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
         </table>
       </div>
     </div>
-  </div>
 
-  <!-- -- CALENDAR VIEW -- -->
-  <div id="calendarView" class="main" style="display:none;">
+    <!-- Calendar sub-view (Bookings › Calendar) -->
+    <div id="calendarView" style="display:none;">
     <div class="cal-header">
       <button class="cal-nav-btn" onclick="calPrev()">&#8249;</button>
       <div class="cal-month-label" id="calMonthLabel"></div>
@@ -823,6 +825,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <span class="cal-dot" style="background:#2E7D32;"></span> Confirmed &nbsp;
       <span class="cal-dot" style="background:#1565C0;"></span> NEW &nbsp;
       <span class="cal-dot" style="background:#4A148C;"></span> Done
+    </div>
     </div>
   </div>
 
@@ -1566,7 +1569,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <button class="refresh-btn" onclick="loadClientsView()">↻ Refresh</button>
     </div>
     <div class="exec-kpi-grid">
-      <div class="exec-kpi" style="border-left:4px solid var(--gold);"><div class="exec-kpi-label">Registered Accounts</div><div class="exec-kpi-value" id="clAccounts">—</div><div class="exec-kpi-sub">booking app sign-ups</div></div>
+      <div class="exec-kpi" style="border-left:4px solid var(--gold);"><div class="exec-kpi-label">Total Clients</div><div class="exec-kpi-value" id="clAccounts">—</div><div class="exec-kpi-sub">accounts + booking clients</div></div>
       <div class="exec-kpi" style="border-left:4px solid #7cb342;"><div class="exec-kpi-label">With Bookings</div><div class="exec-kpi-value" id="clActive">—</div><div class="exec-kpi-sub">have booked at least once</div></div>
       <div class="exec-kpi" style="border-left:4px solid #4fa3ff;"><div class="exec-kpi-label">Lifetime Value</div><div class="exec-kpi-value" id="clSpend">—</div><div class="exec-kpi-sub">total across accounts</div></div>
     </div>
@@ -2178,6 +2181,15 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <button class="save-status-btn" onclick="openKitchenSheet()" style="background:#ba68c8;border-color:#ba68c8;" title="Ingredients market list & prep sheet scaled to this event's guest count">👨‍🍳 Kitchen Sheet</button>
       <button class="save-status-btn" onclick="openEditBooking()" style="background:#4fa3ff;border-color:#4fa3ff;">✏️ Edit Booking</button>
     </div>
+  </div>
+</div>
+
+<!-- CLIENT DETAIL MODAL -->
+<div class="overlay" id="clDetailOverlay" style="display:none">
+  <div class="modal" style="max-width:600px;padding:1.25rem 1.5rem;">
+    <div class="modal-title" id="clDetailTitle">👤 Client</div>
+    <div id="clDetailBody"></div>
+    <button class="refresh-btn" style="width:100%;margin-top:1rem;" onclick="document.getElementById('clDetailOverlay').style.display='none'">Close</button>
   </div>
 </div>
 
@@ -2886,7 +2898,6 @@ function openInventory() { switchTab('inventory'); }
 function switchTab(tab) {
   document.getElementById('tabDashboard').classList.toggle('active', tab === 'dashboard');
   document.getElementById('tabBookings').classList.toggle('active', tab === 'bookings');
-  document.getElementById('tabCalendar').classList.toggle('active', tab === 'calendar');
   document.getElementById('tabFeedback').classList.toggle('active', tab === 'feedback');
   document.getElementById('tabBookkeeping').classList.toggle('active', tab === 'bookkeeping');
   document.getElementById('tabAssets').classList.toggle('active', tab === 'assets');
@@ -2905,7 +2916,6 @@ function switchTab(tab) {
   document.getElementById('tabDataq').classList.toggle('active', tab === 'dataq');
   document.getElementById('dashboardView').style.display = tab === 'dashboard' ? 'block' : 'none';
   document.getElementById('bookingsView').style.display  = tab === 'bookings' ? 'block' : 'none';
-  document.getElementById('calendarView').style.display  = tab === 'calendar' ? 'block' : 'none';
   document.getElementById('feedbackView').style.display  = tab === 'feedback' ? 'block' : 'none';
   document.getElementById('bookkeepingView').style.display = tab === 'bookkeeping' ? 'block' : 'none';
   document.getElementById('assetsView').style.display = tab === 'assets' ? 'block' : 'none';
@@ -2923,7 +2933,6 @@ function switchTab(tab) {
   document.getElementById('clientsView').style.display = tab === 'clients' ? 'block' : 'none';
   document.getElementById('dataqView').style.display = tab === 'dataq' ? 'block' : 'none';
   if (tab === 'dashboard') loadDashboard();
-  if (tab === 'calendar') renderCalendar();
   if (tab === 'feedback') loadFeedback();
   if (tab === 'bookkeeping') loadLedger();
   if (tab === 'assets') loadAssets();
@@ -7261,44 +7270,143 @@ async function cfgSaveSetup() {
 
 
 // =============================================================
-//  CLIENTS TAB — registered accounts + booking aggregates
+//  CLIENTS TAB — unified directory (accounts + booking clients)
+//  Click any row for full details + booking history.
 // =============================================================
-let _clAccounts = [];
+let _clMerged = [];
+
 async function loadClientsView() {
   try {
+    if (!allBookings || !allBookings.length) { try { await loadBookings(); } catch(e){} }
     const res = await fetch(SCRIPT_URL + '?action=cfAccountsList&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
     const json = await res.json();
     if (!json.success) throw new Error(json.error||'Failed');
-    _clAccounts = json.accounts || [];
-    setEl('clAccounts', _clAccounts.length);
-    setEl('clActive', _clAccounts.filter(a=>a.bookings>0).length);
-    setEl('clSpend', '₱' + Math.round(_clAccounts.reduce((s,a)=>s+(a.spend||0),0)).toLocaleString());
+    const accounts = json.accounts || [];
+
+    const byKey = {};
+    const keyOf = (email, name) => (email||'').toLowerCase().trim() || 'n:' + (name||'').toLowerCase().trim();
+    accounts.forEach(a => {
+      byKey[keyOf(a.email, a.name)] = {
+        name:a.name, email:a.email, phone:a.phone, provider:a.provider,
+        lastLogin:a.lastLogin, address:a.address||'', pin:a.pin||'',
+        registered:true, bookings:[], spend:0, lastEvent:''
+      };
+    });
+    (allBookings||[]).forEach(b => {
+      const name = (b['Client Name']||'').trim();
+      if (!name) return;
+      const k = keyOf(b['Email'], name);
+      if (!byKey[k]) {
+        byKey[k] = { name:name, email:(b['Email']||'').trim(), phone:(b['Contact']||'').trim(),
+                     provider:'', lastLogin:'', address:'', pin:'', registered:false,
+                     bookings:[], spend:0, lastEvent:'' };
+      }
+      const c = byKey[k];
+      if (!c.phone && b['Contact']) c.phone = String(b['Contact']).trim();
+      if (!c.address && b['Venue']) c.address = String(b['Venue']).trim();
+      if (b['VenuePin']) c.pin = String(b['VenuePin']).trim();
+      c.bookings.push({ ref:b['Booking Ref'], date:String(b['Event Date']||''), type:b['Event Type']||'',
+                        pkg:b['Package']||'', total:+b['Total (₱)']||0, status:b['Status']||'NEW' });
+      if ((b['Status']||'') !== 'Cancelled') c.spend += (+b['Total (₱)']||0);
+      const d = String(b['Event Date']||'');
+      if (d > c.lastEvent) c.lastEvent = d;
+    });
+    _clMerged = Object.values(byKey).sort((a,b)=>b.spend-a.spend);
+    _clMerged.forEach(c => c.bookings.sort((a,b)=>String(b.date).localeCompare(String(a.date))));
+
+    setEl('clAccounts', _clMerged.length);
+    setEl('clActive', _clMerged.filter(c=>c.bookings.length>0).length);
+    setEl('clSpend', '₱' + Math.round(_clMerged.reduce((s,c)=>s+c.spend,0)).toLocaleString());
     renderClientsTable();
   } catch(e) {
     document.getElementById('clBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ff6b6b;padding:2rem;">Error: ' + escapeHtml(e.message) + '</td></tr>';
   }
 }
+
 const CL_PROVIDER_ICONS = { manual:'✉️ Email', google:'🟢 Google', facebook:'🔵 Facebook' };
+
 function renderClientsTable() {
   const q = (document.getElementById('clSearch').value||'').toLowerCase();
-  const rows = _clAccounts.filter(a => !q || (a.name+' '+a.email+' '+a.phone).toLowerCase().includes(q));
-  document.getElementById('clBody').innerHTML = rows.length ? rows.map(a => `
-    <tr>
-      <td style="font-weight:600;">${escapeHtml(a.name||'—')}</td>
-      <td class="td-muted">${escapeHtml(a.email)}</td>
-      <td class="td-muted">${escapeHtml(a.phone||'—')}</td>
+  const rows = _clMerged.filter(c => !q || (c.name+' '+c.email+' '+c.phone).toLowerCase().includes(q));
+  document.getElementById('clBody').innerHTML = rows.length ? rows.map(c => {
+    const i = _clMerged.indexOf(c);
+    return `<tr onclick="openClientModal(${i})" style="cursor:pointer;">
+      <td style="font-weight:600;">${escapeHtml(c.name||'—')}</td>
+      <td class="td-muted">${escapeHtml(c.email||'—')}</td>
+      <td class="td-muted">${escapeHtml(c.phone||'—')}</td>
       <td class="td-muted" style="font-size:0.72rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        ${a.pin?`<a href="https://www.google.com/maps?q=${encodeURIComponent(a.pin)}" target="_blank" style="color:#4fa3ff;text-decoration:none;" title="${escapeHtml(a.address||'')}">📍 ${escapeHtml((a.address||'Map pin').split(',')[0])}</a>`:escapeHtml((a.address||'—').split(',').slice(0,2).join(','))}
+        ${c.pin?`<a href="https://www.google.com/maps?q=${encodeURIComponent(c.pin)}" target="_blank" onclick="event.stopPropagation()" style="color:#4fa3ff;text-decoration:none;" title="${escapeHtml(c.address||'')}">📍 ${escapeHtml((c.address||'Map pin').split(',')[0])}</a>`:escapeHtml((c.address||'—').split(',').slice(0,2).join(','))}
       </td>
-      <td style="font-size:0.76rem;">${CL_PROVIDER_ICONS[a.provider]||escapeHtml(a.provider)}</td>
-      <td style="text-align:center;">${a.bookings||0}</td>
-      <td style="color:var(--gold);font-weight:600;">₱${Math.round(a.spend||0).toLocaleString()}</td>
-      <td class="td-muted" style="font-size:0.76rem;">${escapeHtml(a.lastEvent||'—')}</td>
-      <td class="td-muted" style="font-size:0.72rem;">${escapeHtml(String(a.lastLogin||'').split(',')[0])}</td>
-    </tr>`).join('')
-    : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No accounts yet — they appear when clients register on the booking app.</td></tr>';
+      <td style="font-size:0.76rem;">${c.registered ? (CL_PROVIDER_ICONS[c.provider]||escapeHtml(c.provider)) : '<span style="color:var(--muted);">📋 booking only</span>'}</td>
+      <td style="text-align:center;">${c.bookings.length}</td>
+      <td style="color:var(--gold);font-weight:600;">₱${Math.round(c.spend).toLocaleString()}</td>
+      <td class="td-muted" style="font-size:0.76rem;">${escapeHtml(c.lastEvent||'—')}</td>
+      <td class="td-muted" style="font-size:0.72rem;">${escapeHtml(String(c.lastLogin||'—').split(',')[0])}</td>
+    </tr>`; }).join('')
+    : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No clients found.</td></tr>';
 }
 
+function openClientModal(i) {
+  const c = _clMerged[i];
+  if (!c) return;
+  document.getElementById('clDetailTitle').textContent = '👤 ' + (c.name||'Client');
+  const STATUS_C = { NEW:'#4fa3ff', Confirmed:'#66bb6a', Done:'#C9A84C', Cancelled:'#ef5350' };
+  document.getElementById('clDetailBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem 1rem;margin-bottom:1rem;font-size:0.85rem;">
+      <div><span style="color:var(--muted);font-size:0.66rem;text-transform:uppercase;">Email</span><br>${escapeHtml(c.email||'—')}</div>
+      <div><span style="color:var(--muted);font-size:0.66rem;text-transform:uppercase;">Phone</span><br>${escapeHtml(c.phone||'—')}</div>
+      <div><span style="color:var(--muted);font-size:0.66rem;text-transform:uppercase;">Sign-in</span><br>${c.registered?(CL_PROVIDER_ICONS[c.provider]||escapeHtml(c.provider)):'📋 Booking only (no account)'}</div>
+      <div><span style="color:var(--muted);font-size:0.66rem;text-transform:uppercase;">Last Login</span><br>${escapeHtml(String(c.lastLogin||'—').split(',')[0])}</div>
+      <div style="grid-column:1 / -1;"><span style="color:var(--muted);font-size:0.66rem;text-transform:uppercase;">Address</span><br>
+        ${c.pin?`<a href="https://www.google.com/maps?q=${encodeURIComponent(c.pin)}" target="_blank" style="color:#4fa3ff;">📍 ${escapeHtml(c.address||c.pin)}</a>`:escapeHtml(c.address||'—')}</div>
+    </div>
+    <div style="display:flex;gap:1rem;background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:0.7rem 1rem;margin-bottom:1rem;font-size:0.8rem;flex-wrap:wrap;">
+      <span>📋 <strong>${c.bookings.length}</strong> booking(s)</span>
+      <span>💰 <strong style="color:var(--gold);">₱${Math.round(c.spend).toLocaleString()}</strong> lifetime</span>
+      <span>📅 last: <strong>${escapeHtml(c.lastEvent||'—')}</strong></span>
+    </div>
+    <div style="font-size:0.72rem;color:var(--gold);font-weight:700;margin-bottom:0.4rem;">BOOKING HISTORY <span style="color:var(--muted);font-weight:400;">· tap to open</span></div>
+    ${c.bookings.length ? c.bookings.map(bk => `
+      <div onclick="openBookingByRef('${escapeHtml(bk.ref)}')" style="display:flex;justify-content:space-between;gap:0.6rem;padding:0.5rem 0.2rem;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.8rem;align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;">${escapeHtml(bk.ref)} · ${escapeHtml(bk.type||bk.pkg||'')}</div>
+          <div style="color:var(--muted);font-size:0.68rem;">${escapeHtml(bk.date)} · ${escapeHtml(bk.pkg)}</div>
+        </div>
+        <span style="color:${STATUS_C[bk.status]||'var(--muted)'};font-size:0.68rem;font-weight:700;">${escapeHtml(bk.status)}</span>
+        <span style="color:var(--gold);font-weight:700;">₱${bk.total.toLocaleString()}</span>
+      </div>`).join('') : '<div style="color:var(--muted);font-size:0.8rem;">No bookings yet.</div>'}`;
+  document.getElementById('clDetailOverlay').style.display = 'flex';
+}
+
+function openBookingByRef(ref) {
+  document.getElementById('clDetailOverlay').style.display = 'none';
+  switchTab('bookings');
+  setBkView('grid');
+  const si = document.getElementById('searchInput'); if (si) si.value = '';
+  const sf = document.getElementById('statusFilter'); if (sf) sf.value = 'all';
+  const ef = document.getElementById('eventFilter'); if (ef) ef.value = 'all';
+  applyFilters();
+  const rows = window._filteredRows || allBookings;
+  const idx = rows.findIndex(b => b['Booking Ref'] === ref);
+  if (idx >= 0) openModal(idx);
+  else showToast('Booking ' + ref + ' not found in the list', 'red');
+}
+
+// =============================================================
+//  BOOKINGS: Grid / Calendar sub-views
+// =============================================================
+let _bkView = 'grid';
+function setBkView(mode) {
+  _bkView = mode;
+  document.getElementById('bkViewGrid').classList.toggle('active', mode==='grid');
+  document.getElementById('bkViewCal').classList.toggle('active', mode==='calendar');
+  const fb = document.querySelector('#bookingsView .filter-bar');
+  const tw = document.querySelector('#bookingsView .table-wrap');
+  if (fb) fb.style.display = mode==='grid' ? '' : 'none';
+  if (tw) tw.style.display = mode==='grid' ? '' : 'none';
+  document.getElementById('calendarView').style.display = mode==='calendar' ? 'block' : 'none';
+  if (mode==='calendar') renderCalendar();
+}
 
 // =============================================================
 //  CONFIGURATION: notifications + planning checklist
