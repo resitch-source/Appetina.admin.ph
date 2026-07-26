@@ -404,6 +404,9 @@ td{padding:0.7rem 0.9rem;vertical-align:middle;}
 /* Media elements never overflow their container */
 img,svg,canvas,video{max-width:100%;height:auto;}
 #wfDiagram svg{max-width:none;} /* Mermaid diagrams scroll horizontally instead of squishing */
+#wfDiagram .node rect, #wfDiagram .node polygon{filter:drop-shadow(0 3px 10px rgba(0,0,0,0.45));}
+#wfDiagram .edgeLabel{background:transparent !important;}
+#wfDiagram{background:radial-gradient(ellipse at center, rgba(201,168,76,0.045), transparent 70%);border-radius:12px;}
 
 /* Smooth horizontal tab strip with snap */
 .nav-tabs{scroll-behavior:smooth;}
@@ -1521,7 +1524,10 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
         <span>Neither ticked = disabled everywhere</span>
       </div>
       <div id="menuCfgBody"></div>
-      <button class="refresh-btn" style="background:#e57373;color:#fff;border-color:#e57373;margin-top:0.75rem;" onclick="menuCfgSave()">💾 Save Menu Lists</button>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+        <button class="refresh-btn" style="background:#e57373;color:#fff;border-color:#e57373;" onclick="menuCfgSave()">💾 Save Menu Lists</button>
+        <button class="refresh-btn" onclick="seedRecipes()" title="Creates sensible ingredient templates (per-guest quantities + indicative costs) for every dish that has no recipe yet — refine each via 🧾">✨ Auto-fill Missing Recipes</button>
+      </div>
     </div>
 
     <div class="exec-section" style="border-left:4px solid #f4a93b;">
@@ -1568,8 +1574,8 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <input class="filter-search" type="text" id="clSearch" placeholder="🔍  Search name, email, phone…" oninput="renderClientsTable()"/>
     </div>
     <div class="table-scroll" style="overflow-x:auto;"><table style="width:100%;min-width:720px;">
-      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Sign-in</th><th>Bookings</th><th>Total Spend</th><th>Last Event</th><th>Last Login</th></tr></thead>
-      <tbody id="clBody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Sign-in</th><th>Bookings</th><th>Total Spend</th><th>Last Event</th><th>Last Login</th></tr></thead>
+      <tbody id="clBody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
     </table></div>
   </div>
 
@@ -1579,7 +1585,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">🧹 Data Quality</h2>
       <button class="refresh-btn" onclick="runDupScan()">🔍 Re-scan</button>
     </div>
-    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;">Duplicate detection across inventory, menu, bookings, clients, and accounts — transparent similarity analysis (normalization + fuzzy matching), so every match is explainable. Fixes are conservative: money data is never deleted.</p>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;">Duplicate detection across inventory, menu, bookings, clients, and accounts — transparent similarity analysis that <strong>learns from your corrections</strong>: mark a group “✋ Not a duplicate” and it stays dismissed on every future scan. Booking checks flag only the <em>same client on the same day</em>. Fixes are conservative: money data is never deleted.</p>
     <div id="dupSummary"></div>
     <div id="dupResults"></div>
   </div>
@@ -2170,6 +2176,20 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <button class="save-status-btn" id="payRecordBtn" onclick="recordModalPayment(false)">💰 Record</button>
       <button class="save-status-btn" id="fullyPaidBtn" onclick="recordModalPayment(true)" style="background:#7cb342;border-color:#7cb342;">✓ Fully Paid</button>
       <button class="save-status-btn" onclick="openKitchenSheet()" style="background:#ba68c8;border-color:#ba68c8;" title="Ingredients market list & prep sheet scaled to this event's guest count">👨‍🍳 Kitchen Sheet</button>
+      <button class="save-status-btn" onclick="openEditBooking()" style="background:#4fa3ff;border-color:#4fa3ff;">✏️ Edit Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT BOOKING MODAL -->
+<div class="overlay" id="editBkOverlay" style="display:none">
+  <div class="modal" style="max-width:680px;padding:1.25rem 1.5rem;">
+    <div class="modal-title" id="editBkTitle">✏️ Edit Booking</div>
+    <div id="editBkBody" style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;"></div>
+    <p style="font-size:0.68rem;color:var(--muted);margin:0.8rem 0;">Balance recalculates automatically (Total − Downpayment). Changes are audited.</p>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('editBkOverlay').style.display='none'">Cancel</button>
+      <button class="refresh-btn" style="flex:1;background:#4fa3ff;color:#fff;border-color:#4fa3ff;" onclick="saveEditBooking()">💾 Save All Changes</button>
     </div>
   </div>
 </div>
@@ -4058,9 +4078,11 @@ function initMermaidOnce() {
   mermaid.initialize({
     startOnLoad: false,
     theme: 'base',
+    flowchart: { curve: 'basis', nodeSpacing: 46, rankSpacing: 56, padding: 14 },
     themeVariables: {
-      primaryColor: '#241a0e', primaryTextColor: '#f5ede0', primaryBorderColor: '#3d2410',
-      lineColor: '#9b8068', fontSize: '14px', fontFamily: 'inherit'
+      primaryColor: '#241a0e', primaryTextColor: '#f5ede0', primaryBorderColor: '#C9A84C',
+      lineColor: '#8a7050', fontSize: '14px',
+      fontFamily: "'Playfair Display', Georgia, serif"
     }
   });
   _mermaidReady = true;
@@ -4153,8 +4175,8 @@ function renderWorkflow() {
   def.stages.concat(def.extra||[]).forEach(stage => {
     const n = counts[stage] || 0;
     const col = def.colors[stage] || '#9b8068';
-    const opacity = n > 0 ? '' : 'opacity:0.35,';
-    mmd += `  style ${nodeId(stage)} fill:${col},stroke:${col},color:#0f0a06,${opacity}font-weight:bold\n`;
+    const opacity = n > 0 ? '' : 'opacity:0.3,';
+    mmd += `  style ${nodeId(stage)} fill:#1a1209,stroke:${col},stroke-width:2.5px,color:#f5ede0,${opacity}font-weight:bold,rx:14,ry:14\n`;
   });
   const container = document.getElementById('wfDiagram');
   container.innerHTML = '';
@@ -7239,7 +7261,7 @@ async function loadClientsView() {
     setEl('clSpend', '₱' + Math.round(_clAccounts.reduce((s,a)=>s+(a.spend||0),0)).toLocaleString());
     renderClientsTable();
   } catch(e) {
-    document.getElementById('clBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ff6b6b;padding:2rem;">Error: ' + escapeHtml(e.message) + '</td></tr>';
+    document.getElementById('clBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ff6b6b;padding:2rem;">Error: ' + escapeHtml(e.message) + '</td></tr>';
   }
 }
 const CL_PROVIDER_ICONS = { manual:'✉️ Email', google:'🟢 Google', facebook:'🔵 Facebook' };
@@ -7251,13 +7273,16 @@ function renderClientsTable() {
       <td style="font-weight:600;">${escapeHtml(a.name||'—')}</td>
       <td class="td-muted">${escapeHtml(a.email)}</td>
       <td class="td-muted">${escapeHtml(a.phone||'—')}</td>
+      <td class="td-muted" style="font-size:0.72rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        ${a.pin?`<a href="https://www.google.com/maps?q=${encodeURIComponent(a.pin)}" target="_blank" style="color:#4fa3ff;text-decoration:none;" title="${escapeHtml(a.address||'')}">📍 ${escapeHtml((a.address||'Map pin').split(',')[0])}</a>`:escapeHtml((a.address||'—').split(',').slice(0,2).join(','))}
+      </td>
       <td style="font-size:0.76rem;">${CL_PROVIDER_ICONS[a.provider]||escapeHtml(a.provider)}</td>
       <td style="text-align:center;">${a.bookings||0}</td>
       <td style="color:var(--gold);font-weight:600;">₱${Math.round(a.spend||0).toLocaleString()}</td>
       <td class="td-muted" style="font-size:0.76rem;">${escapeHtml(a.lastEvent||'—')}</td>
       <td class="td-muted" style="font-size:0.72rem;">${escapeHtml(String(a.lastLogin||'').split(',')[0])}</td>
     </tr>`).join('')
-    : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">No accounts yet — they appear when clients register on the booking app.</td></tr>';
+    : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No accounts yet — they appear when clients register on the booking app.</td></tr>';
 }
 
 
@@ -7607,9 +7632,10 @@ function renderDupGroup(kind, g, gi) {
       <span style="flex:1;">${escapeHtml(it.name)}</span>
       <span style="color:var(--muted);font-size:0.72rem;">${escapeHtml(it.email)} · ${escapeHtml(it.provider)} · last login ${escapeHtml(String(it.lastLogin||'').split(',')[0])}</span></div>`).join('');
   }
-  const fixBtn = DUP_META[kind].fix === 'none' ? '' :
+  const dismissBtn = `<button class="refresh-btn" style="margin-left:0.5rem;" onclick="dismissDupGroup('${kind}',${gi})">✋ Not a duplicate</button>`;
+  const fixBtn = DUP_META[kind].fix === 'none' ? dismissBtn :
     `<button class="refresh-btn" style="background:#7cb342;color:#fff;border-color:#7cb342;" onclick="applyDupFix('${kind}',${gi})">🔧 ${
-      kind==='inventory'?'Merge into selected':kind==='menu'?'Keep selected, remove others':kind==='bookings'?'Keep selected, cancel others':'Keep selected, remove others'}</button>`;
+      kind==='inventory'?'Merge into selected':kind==='menu'?'Keep selected, remove others':kind==='bookings'?'Keep selected, cancel others':'Keep selected, remove others'}</button>` + dismissBtn;
   return `<div id="grp_${gid}" style="background:var(--surface);border:1px solid var(--border);border-left:4px solid #f4a93b;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
     ${rows}
     <div style="font-size:0.72rem;color:var(--muted);margin:0.5rem 0;">⚠️ ${escapeHtml(g.why||'')}<br>💡 ${escapeHtml(g.rec||'')}</div>
@@ -7652,6 +7678,86 @@ async function applyDupFix(kind, gi) {
     document.getElementById('grp_' + gid).style.opacity = '0.4';
     if (kind === 'inventory' && typeof loadInventory === 'function') loadInventory();
     if (kind === 'menu') { _posMenu = null; }
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+
+async function dismissDupGroup(kind, gi) {
+  const g = _dupData[kind][gi];
+  if (!g.key) { showToast('Missing group key — re-scan first', 'red'); return; }
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfDupDismiss&token=' + encodeURIComponent(sessionToken)
+                + '&key=' + encodeURIComponent(g.key) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ Remembered — this group will not be flagged again', 'gold');
+    document.getElementById('grp_' + kind + '_' + gi).style.display = 'none';
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+// =============================================================
+//  FULL BOOKING EDIT
+// =============================================================
+const EDIT_BK_FIELDS = [
+  ['client','Client Name','text'], ['contact','Contact','text'], ['email','Email','email'],
+  ['eventType','Event Type','text'], ['occasion','Occasion','text'],
+  ['date','Event Date','date'], ['time','Time','time'],
+  ['venue','Venue','text'], ['motif','Motif','text'],
+  ['package','Package','text'], ['pax','Guests (Pax)','number'],
+  ['total','Total (₱)','number'], ['down','Downpayment (₱)','number'],
+  ['beef','Beef Dish','text'], ['fish','Fish Dish','text'], ['chicken','Chicken Dish','text'],
+  ['veggie','Veggie Dish','text'], ['pasta','Pasta','text'], ['desserts','Desserts','text'],
+  ['drinks','Drinks','text'], ['lechon','Lechon','text'],
+  ['addons','Add-ons','text'], ['notes','Notes','textarea']
+];
+async function openEditBooking() {
+  if (!currentRef) return;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfBookingGet&token=' + encodeURIComponent(sessionToken)
+                + '&ref=' + encodeURIComponent(currentRef) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    const b = json.booking;
+    document.getElementById('editBkTitle').textContent = '✏️ Edit ' + b.ref + ' — all fields';
+    document.getElementById('editBkBody').innerHTML = EDIT_BK_FIELDS.map(([k,label,type]) => `
+      <div style="${type==='textarea'?'grid-column:1 / -1;':''}">
+        <label class="entry-label">${label}</label>
+        ${type==='textarea'
+          ? `<textarea class="entry-input eb-f" data-k="${k}" style="min-height:64px;">${escapeHtml(String(b[k]||''))}</textarea>`
+          : `<input class="entry-input eb-f" data-k="${k}" type="${type}" value="${escapeHtml(String(b[k]??''))}"/>`}
+      </div>`).join('');
+    document.getElementById('editBkOverlay').style.display = 'flex';
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+async function saveEditBooking() {
+  const fields = {};
+  document.querySelectorAll('#editBkBody .eb-f').forEach(el => { fields[el.dataset.k] = el.value; });
+  if (!confirm('Save all changes to ' + currentRef + '? This writes directly to the sheet.')) return;
+  try {
+    const params = new URLSearchParams({ action:'cfBookingUpdate', token:sessionToken,
+      ref:currentRef, fields:JSON.stringify(fields) });
+    const res = await fetch(SCRIPT_URL + '?' + params.toString() + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    document.getElementById('editBkOverlay').style.display = 'none';
+    showToast('✓ ' + json.changed + ' field(s) saved — refreshing', 'gold');
+    const ref = currentRef;
+    closeModal();
+    await loadBookings();
+    const rows = window._filteredRows || allBookings;
+    const idx = rows.findIndex(x => x['Booking Ref'] === ref);
+    if (idx >= 0) openModal(idx);
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+async function seedRecipes() {
+  if (!confirm('Create template ingredient lists (per-guest quantities + indicative costs) for every dish that has no recipe yet? You can refine each afterwards via 🧾.')) return;
+  showToast('Seeding recipes…', 'gold');
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfSeedRecipes&token=' + encodeURIComponent(sessionToken) + '&ts=' + Date.now());
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error||'Failed');
+    showToast('✓ ' + json.seeded + ' dish recipe(s) created — open 🧾 on any dish to refine', 'gold');
   } catch(e) { showToast('Error: ' + e.message, 'red'); }
 }
 
