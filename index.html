@@ -641,7 +641,6 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       </div>
       <div class="nv-group"><div class="nv-group-lbl">Operations</div>
         <button class="nav-tab" id="tabDelivery" onclick="switchTab('delivery')"><span class="nv-ico">🚚</span><span class="nv-lbl">Delivery</span></button>
-        <button class="nav-tab" id="tabOps" onclick="switchTab('ops')"><span class="nv-ico">🚦</span><span class="nv-lbl">Ops Status</span></button>
         <button class="nav-tab" id="tabInventory" onclick="switchTab('inventory')"><span class="nv-ico">📦</span><span class="nv-lbl">Inventory</span></button>
         <button class="nav-tab" id="tabPurchasing" onclick="switchTab('purchasing')"><span class="nv-ico">🛒</span><span class="nv-lbl">Purchasing</span></button>
         <button class="nav-tab" id="tabQC" onclick="switchTab('qc')"><span class="nv-ico">✅</span><span class="nv-lbl">Quality</span></button>
@@ -1082,19 +1081,6 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   </div>
 
   <!-- DELIVERY VIEW -->
-  <!-- OPS STATUS VIEW (8-Wave live) -->
-  <div id="opsView" class="main" style="display:none;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
-      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">🚦 Operations Status <span style="font-size:0.7rem;color:var(--muted);font-weight:400;">· today &amp; tomorrow</span></h2>
-      <button class="refresh-btn" onclick="loadOpsStatus()">↻ Refresh</button>
-    </div>
-    <p style="font-size:0.76rem;color:var(--muted);margin-bottom:1rem;">Live 8-Wave progress from warehouse scans. Each event moves WAREHOUSE → LOADED → DROPPED → RETURNING → SANITIZED. Warehouse staff scan on the mobile Ops Scanner; this is the read-only command view.</p>
-    <div id="opsAlerts"></div>
-    <div id="opsCards" class="exec-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));">
-      <div style="color:var(--muted);padding:1rem;">Loading operations…</div>
-    </div>
-  </div>
-
   <div id="deliveryView" class="main" style="display:none;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
       <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">🚚 Delivery Tracking</h2>
@@ -1370,8 +1356,36 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
     </div>
 
     <div style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">
-      Live view of where everything sits in each process. Numbers show how many items are currently at each stage.
+      The full event lifecycle with status-tracked checklists per stage, plus live pipeline analytics below.
     </div>
+
+    <!-- ===== EVENT LIFECYCLE (8-stage checklists) ===== -->
+    <div class="exec-section" style="border-left:4px solid var(--gold);">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+        <div class="exec-section-title" style="margin:0;">🗂️ Event Lifecycle <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· professional end-to-end process</span></div>
+        <select id="wfEventSel" onchange="wfPickEvent()" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:0.5rem 0.7rem;font-size:0.82rem;max-width:280px;">
+          <option value="">— Select an event —</option>
+        </select>
+      </div>
+
+      <!-- Stage sub-tabs -->
+      <div id="wfStageTabs" style="display:flex;gap:0.4rem;overflow-x:auto;padding-bottom:0.5rem;margin-bottom:0.9rem;"></div>
+
+      <!-- No event chosen: board overview -->
+      <div id="wfBoardOverview">
+        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem;">Upcoming events and their overall progress — tap one to open its checklists.</div>
+        <div id="wfBoardCards" class="exec-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));"></div>
+      </div>
+
+      <!-- Event chosen: stage checklist -->
+      <div id="wfStagePanel" style="display:none;">
+        <div id="wfStageHead" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem;"></div>
+        <div id="wfChecklist"></div>
+        <div id="wfStageOps" style="margin-top:0.9rem;"></div>
+      </div>
+    </div>
+
+    <div class="exec-section-title" style="margin:1.5rem 0 0.5rem;color:var(--muted);font-size:0.9rem;">📈 Pipeline Analytics</div>
 
     <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap;">
       <button class="filter-chip-bl active" id="wfSub-booking" onclick="setWfSub('booking',this)">📋 Booking Pipeline</button>
@@ -2930,7 +2944,6 @@ function switchTab(tab) {
   document.getElementById('tabAnalytics').classList.toggle('active', tab === 'analytics');
   document.getElementById('tabInventory').classList.toggle('active', tab === 'inventory');
   document.getElementById('tabDelivery').classList.toggle('active', tab === 'delivery');
-  document.getElementById('tabOps').classList.toggle('active', tab === 'ops');
   document.getElementById('tabSupport').classList.toggle('active', tab === 'support');
   document.getElementById('tabQC').classList.toggle('active', tab === 'qc');
   document.getElementById('tabPurchasing').classList.toggle('active', tab === 'purchasing');
@@ -2949,7 +2962,6 @@ function switchTab(tab) {
   document.getElementById('analyticsView').style.display = tab === 'analytics' ? 'block' : 'none';
   document.getElementById('inventoryView').style.display = tab === 'inventory' ? 'block' : 'none';
   document.getElementById('deliveryView').style.display = tab === 'delivery' ? 'block' : 'none';
-  document.getElementById('opsView').style.display = tab === 'ops' ? 'block' : 'none';
   document.getElementById('supportView').style.display = tab === 'support' ? 'block' : 'none';
   document.getElementById('qcView').style.display = tab === 'qc' ? 'block' : 'none';
   document.getElementById('purchasingView').style.display = tab === 'purchasing' ? 'block' : 'none';
@@ -4144,6 +4156,7 @@ function wfDate(s) { const d = new Date(s); return isNaN(d) ? null : d; }
 function wfDaysBetween(a, b) { return Math.round((b - a) / 86400000); }
 
 async function loadWorkflows() {
+  loadWfLifecycle();
   initMermaidOnce();
   try {
     if (!allBookings || !allBookings.length) { try { await loadBookings(); } catch(e){} }
@@ -8117,6 +8130,185 @@ async function opsSeedFromAdmin() {
     showToast(j.success ? ('✓ ' + j.message) : j.message, j.success ? 'gold' : 'red');
     if (j.success) { openOpsDetail(_opsCurrentEvent, document.getElementById('opsDetailTitle').textContent.replace('🚦 ','')); loadOpsStatus(); }
   } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+
+// =============================================================
+//  EVENT LIFECYCLE — 8-stage checklists + embedded live ops
+// =============================================================
+const WF_STAGE_META = {
+  marketing:{icon:'📣',label:'Marketing'}, booking:{icon:'📋',label:'Booking'},
+  planning:{icon:'🗓️',label:'Planning & Scheduling'}, purchasing:{icon:'🛒',label:'Purchasing'},
+  kitchen:{icon:'👨‍🍳',label:'Kitchen Prep'}, setup:{icon:'🎪',label:'Event Setup'},
+  quality:{icon:'✅',label:'Quality'}, delivery:{icon:'🚚',label:'Delivery & Service'},
+  breakdown:{icon:'📦',label:'Breakdown & Return'}
+};
+let _wfBoard = null, _wfEventRef = '', _wfEventData = null, _wfStage = 'marketing';
+
+async function wfApi(params) {
+  const q = new URLSearchParams(Object.assign({ token:sessionToken, ts:Date.now() }, params));
+  const res = await fetch(SCRIPT_URL + '?' + q.toString());
+  return res.json();
+}
+
+// Called by loadWorkflows() (existing) — also boots the lifecycle board
+async function loadWfLifecycle() {
+  try {
+    const j = await wfApi({ action:'cfWfBoard' });
+    if (!j.success) throw new Error(j.error || 'Failed');
+    _wfBoard = j;
+    const sel = document.getElementById('wfEventSel');
+    sel.innerHTML = '<option value="">— Select an event —</option>' + j.events.map(e =>
+      `<option value="${escapeHtml(e.ref)}">${escapeHtml(e.date)} · ${escapeHtml(e.client)} (${e.progress}%)</option>`).join('');
+    if (_wfEventRef) sel.value = _wfEventRef;
+    renderWfStageTabs();
+    if (_wfEventRef) wfPickEvent(); else renderWfBoard();
+  } catch(e) {
+    document.getElementById('wfBoardCards').innerHTML = '<div style="color:#ff6b6b;padding:1rem;">Error: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderWfStageTabs() {
+  const order = ['marketing','booking','planning','purchasing','kitchen','setup','quality','delivery','breakdown'];
+  document.getElementById('wfStageTabs').innerHTML = order.map(id => {
+    const m = WF_STAGE_META[id];
+    return `<button class="filter-chip-bl ${id===_wfStage?'active':''}" id="wfTab-${id}" onclick="wfSetStage('${id}')" style="white-space:nowrap;">${m.icon} ${m.label}</button>`;
+  }).join('');
+}
+
+function renderWfBoard() {
+  document.getElementById('wfBoardOverview').style.display = 'block';
+  document.getElementById('wfStagePanel').style.display = 'none';
+  const cards = (_wfBoard && _wfBoard.events) || [];
+  document.getElementById('wfBoardCards').innerHTML = cards.length ? cards.map(e => {
+    const color = e.progress < 34 ? '#ef5350' : e.progress <= 80 ? '#f4a93b' : '#66bb6a';
+    const dots = e.stages.map(s => {
+      const m = WF_STAGE_META[s.id];
+      const c = s.total===0 ? '#3d2410' : s.done===s.total ? '#66bb6a' : s.done>0 ? '#f4a93b' : '#9b8068';
+      return `<span title="${m.label}: ${s.done}/${s.total}" style="width:14px;height:14px;border-radius:50%;background:${c};display:inline-flex;align-items:center;justify-content:center;font-size:0.5rem;">${s.done===s.total&&s.total>0?'✓':''}</span>`;
+    }).join('');
+    return `<div class="exec-kpi" style="cursor:pointer;border-left:4px solid ${color};" onclick="wfOpenEvent('${escapeHtml(e.ref)}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong style="font-size:0.92rem;">${escapeHtml(e.client)}</strong>
+        <span style="color:${color};font-weight:800;">${e.progress}%</span>
+      </div>
+      <div style="color:var(--muted);font-size:0.72rem;margin:0.2rem 0 0.6rem;">${escapeHtml(e.date)} · ${escapeHtml(e.venue||'—')} · ${escapeHtml(e.status)}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">${dots}</div>
+    </div>`;
+  }).join('') : '<div style="color:var(--muted);padding:1rem;">No active events being tracked yet. Events within ~60 days auto-appear here once confirmed.</div>';
+}
+
+function wfPickEvent() {
+  const ref = document.getElementById('wfEventSel').value;
+  if (ref) wfOpenEvent(ref); else { _wfEventRef=''; renderWfBoard(); }
+}
+async function wfOpenEvent(ref) {
+  _wfEventRef = ref;
+  document.getElementById('wfEventSel').value = ref;
+  try {
+    const j = await wfApi({ action:'cfWfEventTasks', ref:ref });
+    if (!j.success) throw new Error(j.error||'Failed');
+    _wfEventData = j;
+    renderWfStageTabs();
+    wfSetStage(_wfStage);
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+function wfSetStage(stageId) {
+  _wfStage = stageId;
+  document.querySelectorAll('#wfStageTabs .filter-chip-bl').forEach(b => b.classList.remove('active'));
+  const tab = document.getElementById('wfTab-' + stageId); if (tab) tab.classList.add('active');
+  if (!_wfEventData) { renderWfBoard(); return; }
+  document.getElementById('wfBoardOverview').style.display = 'none';
+  document.getElementById('wfStagePanel').style.display = 'block';
+
+  const stage = _wfEventData.stages.find(s => s.id === stageId) || { tasks:[], done:0, total:0, label:'', icon:'' };
+  const m = WF_STAGE_META[stageId];
+  const pct = stage.total ? Math.round(stage.done/stage.total*100) : 0;
+  const ev = (_wfBoard && _wfBoard.events || []).find(e => e.ref === _wfEventRef) || {};
+
+  document.getElementById('wfStageHead').innerHTML = `
+    <div>
+      <div style="font-weight:700;font-size:1rem;">${m.icon} ${m.label}</div>
+      <div style="color:var(--muted);font-size:0.72rem;">${escapeHtml(ev.client||'')} · ${escapeHtml(ev.date||'')} · ${stage.done}/${stage.total} done (${pct}%)</div>
+    </div>
+    <button class="refresh-btn" onclick="wfOpenBooking('${escapeHtml(_wfEventRef)}')">Open Booking →</button>`;
+
+  document.getElementById('wfChecklist').innerHTML = stage.tasks.length ? stage.tasks.map(t => `
+    <label style="display:flex;gap:0.7rem;align-items:flex-start;padding:0.6rem 0.2rem;border-bottom:1px solid var(--border);cursor:pointer;">
+      <input type="checkbox" ${t.done?'checked':''} onchange="wfToggle('${stageId}','${t.taskId}',this.checked)" style="width:18px;height:18px;accent-color:#66bb6a;flex-shrink:0;margin-top:1px;"/>
+      <div style="flex:1;">
+        <div style="font-size:0.86rem;${t.done?'color:var(--muted);text-decoration:line-through;':''}">${escapeHtml(t.task)}</div>
+        ${t.done && t.doneAt ? `<div style="font-size:0.64rem;color:var(--muted);">✓ ${escapeHtml(t.doneBy||'admin')} · ${escapeHtml(String(t.doneAt).split(',')[0])}</div>` : ''}
+      </div>
+    </label>`).join('') : '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0;">No checklist items for this stage.</div>';
+
+  // Embed live ops data into the relevant stages
+  const opsBox = document.getElementById('wfStageOps');
+  opsBox.innerHTML = '';
+  if (stageId === 'kitchen') {
+    opsBox.innerHTML = `<button class="refresh-btn" style="background:#ba68c8;color:#fff;border-color:#ba68c8;" onclick="currentRef='${escapeHtml(_wfEventRef)}';openKitchenSheet()">👨‍🍳 Open Kitchen Sheet (market list & prep)</button>`;
+  } else if (stageId === 'delivery' || stageId === 'setup' || stageId === 'breakdown') {
+    wfEmbedOps(opsBox, _wfEventRef);
+  }
+}
+
+async function wfToggle(stageId, taskId, done) {
+  try {
+    const j = await wfApi({ action:'cfWfToggle', ref:_wfEventRef, stage:stageId, taskId:taskId, done:done, by:'admin' });
+    if (!j.success) throw new Error(j.error||'Failed');
+    // update local state
+    const st = _wfEventData.stages.find(s=>s.id===stageId);
+    const tk = st && st.tasks.find(t=>t.taskId===taskId);
+    if (tk) { tk.done = done; tk.doneAt = done ? new Date().toLocaleString() : ''; tk.doneBy='admin'; st.done = st.tasks.filter(t=>t.done).length; }
+    wfSetStage(stageId);
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+// Live 8-Wave scan status embedded into Delivery/Setup/Breakdown stages
+async function wfEmbedOps(box, ref) {
+  box.innerHTML = '<div style="font-size:0.72rem;color:var(--muted);">Loading live scan status…</div>';
+  try {
+    const [man, map] = await Promise.all([
+      wfApi({ action:'opsManifest', eventId:ref }),
+      wfApi({ action:'opsLoadingMap', eventId:ref })
+    ]);
+    if (!man.success || !man.data.length) {
+      box.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.8rem;font-size:0.78rem;color:var(--muted);">
+        No truck manifest yet. <button class="refresh-btn" style="margin-left:0.5rem;" onclick="wfSeedManifest('${escapeHtml(ref)}')">+ Seed Manifest</button></div>`;
+      return;
+    }
+    const OPS_C = { WAREHOUSE:'#9b8068', LOADED:'#4fa3ff', DROPPED:'#f4a93b', RETURNING:'#ba68c8', SANITIZED:'#66bb6a' };
+    const counts = { WAREHOUSE:0,LOADED:0,DROPPED:0,RETURNING:0,SANITIZED:0 };
+    man.data.forEach(m => counts[m.status] = (counts[m.status]||0)+1);
+    let html = '<div style="font-size:0.7rem;color:var(--gold);font-weight:700;margin-bottom:0.4rem;">🚚 LIVE TRUCK / SCAN STATUS</div>';
+    html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem;">' +
+      Object.keys(counts).map(s=>`<span style="font-size:0.66rem;font-weight:700;padding:0.2rem 0.5rem;border-radius:99px;background:${OPS_C[s]}22;color:${OPS_C[s]};border:1px solid ${OPS_C[s]};">${s} ${counts[s]}</span>`).join('') + '</div>';
+    if (map.success && map.data.length) {
+      html += map.data.map(z => `<div style="border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.4rem;">
+        <span style="color:var(--gold);font-size:0.74rem;font-weight:700;">Zone ${escapeHtml(z.zone)}</span> <span style="color:var(--muted);font-size:0.66rem;">${escapeHtml(z.position)}</span><br>
+        ${z.kits.map(k=>`<span style="display:inline-block;font-size:0.68rem;margin:0.2rem 0.3rem 0 0;padding:0.15rem 0.4rem;border-radius:6px;background:${OPS_C[k.status]}22;color:${OPS_C[k.status]};">#${k.seq} ${escapeHtml(k.kitName)}</span>`).join('')}
+      </div>`).join('');
+    }
+    html += '<div style="font-size:0.64rem;color:var(--muted);margin-top:0.4rem;">Warehouse crew update these by scanning on the mobile Ops Scanner.</div>';
+    box.innerHTML = html;
+  } catch(e) { box.innerHTML = '<div style="font-size:0.74rem;color:#ff6b6b;">Ops status unavailable: ' + escapeHtml(e.message) + '</div>'; }
+}
+async function wfSeedManifest(ref) {
+  if (!confirm('Seed this event\'s truck manifest from all defined kits (CF_Kits)?')) return;
+  try {
+    const j = await wfApi({ action:'opsSeedManifest', eventId:ref });
+    showToast(j.success ? ('✓ ' + j.message) : j.message, j.success?'gold':'red');
+    if (j.success) wfSetStage(_wfStage);
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+function wfOpenBooking(ref) {
+  switchTab('bookings'); setBkView('grid');
+  ['searchInput','statusFilter','eventFilter'].forEach((id,k)=>{ const el=document.getElementById(id); if(el) el.value = k?'all':''; });
+  if (typeof applyFilters==='function') applyFilters();
+  const rows = window._filteredRows || allBookings;
+  const idx = rows.findIndex(b => b['Booking Ref'] === ref);
+  if (idx >= 0) openModal(idx);
 }
 
 </script>
