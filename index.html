@@ -641,6 +641,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       </div>
       <div class="nv-group"><div class="nv-group-lbl">Operations</div>
         <button class="nav-tab" id="tabDelivery" onclick="switchTab('delivery')"><span class="nv-ico">🚚</span><span class="nv-lbl">Delivery</span></button>
+        <button class="nav-tab" id="tabOps" onclick="switchTab('ops')"><span class="nv-ico">🚦</span><span class="nv-lbl">Ops Status</span></button>
         <button class="nav-tab" id="tabInventory" onclick="switchTab('inventory')"><span class="nv-ico">📦</span><span class="nv-lbl">Inventory</span></button>
         <button class="nav-tab" id="tabPurchasing" onclick="switchTab('purchasing')"><span class="nv-ico">🛒</span><span class="nv-lbl">Purchasing</span></button>
         <button class="nav-tab" id="tabQC" onclick="switchTab('qc')"><span class="nv-ico">✅</span><span class="nv-lbl">Quality</span></button>
@@ -1081,6 +1082,19 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   </div>
 
   <!-- DELIVERY VIEW -->
+  <!-- OPS STATUS VIEW (8-Wave live) -->
+  <div id="opsView" class="main" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">🚦 Operations Status <span style="font-size:0.7rem;color:var(--muted);font-weight:400;">· today &amp; tomorrow</span></h2>
+      <button class="refresh-btn" onclick="loadOpsStatus()">↻ Refresh</button>
+    </div>
+    <p style="font-size:0.76rem;color:var(--muted);margin-bottom:1rem;">Live 8-Wave progress from warehouse scans. Each event moves WAREHOUSE → LOADED → DROPPED → RETURNING → SANITIZED. Warehouse staff scan on the mobile Ops Scanner; this is the read-only command view.</p>
+    <div id="opsAlerts"></div>
+    <div id="opsCards" class="exec-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));">
+      <div style="color:var(--muted);padding:1rem;">Loading operations…</div>
+    </div>
+  </div>
+
   <div id="deliveryView" class="main" style="display:none;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
       <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin:0;">🚚 Delivery Tracking</h2>
@@ -2184,6 +2198,18 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   </div>
 </div>
 
+<!-- OPS EVENT DETAIL MODAL -->
+<div class="overlay" id="opsDetailOverlay" style="display:none">
+  <div class="modal" style="max-width:560px;padding:1.25rem 1.5rem;">
+    <div class="modal-title" id="opsDetailTitle">🚦 Event Ops</div>
+    <div id="opsDetailBody"></div>
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+      <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('opsDetailOverlay').style.display='none'">Close</button>
+      <button class="refresh-btn" style="flex:1;" id="opsSeedBtn" onclick="opsSeedFromAdmin()">+ Seed Manifest</button>
+    </div>
+  </div>
+</div>
+
 <!-- CLIENT DETAIL MODAL -->
 <div class="overlay" id="clDetailOverlay" style="display:none">
   <div class="modal" style="max-width:600px;padding:1.25rem 1.5rem;">
@@ -2904,6 +2930,7 @@ function switchTab(tab) {
   document.getElementById('tabAnalytics').classList.toggle('active', tab === 'analytics');
   document.getElementById('tabInventory').classList.toggle('active', tab === 'inventory');
   document.getElementById('tabDelivery').classList.toggle('active', tab === 'delivery');
+  document.getElementById('tabOps').classList.toggle('active', tab === 'ops');
   document.getElementById('tabSupport').classList.toggle('active', tab === 'support');
   document.getElementById('tabQC').classList.toggle('active', tab === 'qc');
   document.getElementById('tabPurchasing').classList.toggle('active', tab === 'purchasing');
@@ -2922,6 +2949,7 @@ function switchTab(tab) {
   document.getElementById('analyticsView').style.display = tab === 'analytics' ? 'block' : 'none';
   document.getElementById('inventoryView').style.display = tab === 'inventory' ? 'block' : 'none';
   document.getElementById('deliveryView').style.display = tab === 'delivery' ? 'block' : 'none';
+  document.getElementById('opsView').style.display = tab === 'ops' ? 'block' : 'none';
   document.getElementById('supportView').style.display = tab === 'support' ? 'block' : 'none';
   document.getElementById('qcView').style.display = tab === 'qc' ? 'block' : 'none';
   document.getElementById('purchasingView').style.display = tab === 'purchasing' ? 'block' : 'none';
@@ -2938,7 +2966,8 @@ function switchTab(tab) {
   if (tab === 'assets') loadAssets();
   if (tab === 'analytics') loadAnalytics();
   if (tab === 'inventory') loadInventory();
-  if (tab === 'delivery') loadDeliveries(); else stopDeliveryPolling();
+  if (tab === 'delivery') loadDeliveries();
+  if (tab === 'ops') loadOpsStatus(); else stopDeliveryPolling();
   if (tab === 'support') loadTickets();
   if (tab === 'qc') loadQC();
   if (tab === 'purchasing') loadPurchasing();
@@ -7983,6 +8012,110 @@ async function seedRecipes() {
     const json = await res.json();
     if (!json.success) throw new Error(json.error||'Failed');
     showToast('✓ ' + json.seeded + ' dish recipe(s) created — open 🧾 on any dish to refine', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+
+// =============================================================
+//  OPS STATUS (admin) — read-only 8-Wave command view
+//  Uses the same ops actions; authenticated via session token.
+// =============================================================
+const OPS_RING = { Red:'#ef5350', Yellow:'#f4a93b', Green:'#66bb6a' };
+const OPS_STATE_COLOR = { WAREHOUSE:'#9b8068', LOADED:'#4fa3ff', DROPPED:'#f4a93b', RETURNING:'#ba68c8', SANITIZED:'#66bb6a' };
+let _opsCurrentEvent = '';
+
+async function opsApi(params) {
+  const q = new URLSearchParams(Object.assign({ token:sessionToken, ts:Date.now() }, params));
+  const res = await fetch(SCRIPT_URL + '?' + q.toString());
+  return res.json();
+}
+
+function opsRingSvg(progress, color) {
+  const r = 30, c = 2*Math.PI*r, off = c - (progress/100)*c;
+  return `<svg width="76" height="76" viewBox="0 0 76 76">
+    <circle cx="38" cy="38" r="${r}" fill="none" stroke="var(--border)" stroke-width="6"/>
+    <circle cx="38" cy="38" r="${r}" fill="none" stroke="${OPS_RING[color]||'#9b8068'}" stroke-width="6"
+      stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 38 38)"/>
+    <text x="38" y="44" text-anchor="middle" font-size="17" font-weight="800" fill="var(--gold)">${progress}%</text>
+  </svg>`;
+}
+
+async function loadOpsStatus() {
+  const cards = document.getElementById('opsCards');
+  const alerts = document.getElementById('opsAlerts');
+  cards.innerHTML = '<div style="color:var(--muted);padding:1rem;">Loading operations…</div>';
+  alerts.innerHTML = '';
+  try {
+    const j = await opsApi({ action:'opsDashboard' });
+    if (!j.success) throw new Error(j.message || 'Failed');
+    const { cards:list, alerts:alertList } = j.data;
+    alerts.innerHTML = (alertList||[]).map(a =>
+      `<div style="background:rgba(239,83,80,0.1);border:1px solid #ef5350;border-left:4px solid #ef5350;border-radius:10px;padding:0.7rem 1rem;font-size:0.85rem;margin-bottom:0.5rem;">${escapeHtml(a)}</div>`).join('');
+    cards.innerHTML = list.length ? list.map(c => `
+      <div class="exec-kpi" style="cursor:pointer;border-left:4px solid ${OPS_RING[c.statusColor]||'#9b8068'};" onclick="openOpsDetail('${escapeHtml(c.eventId)}','${escapeHtml(c.eventName)}')">
+        <div style="display:flex;align-items:center;gap:0.9rem;">
+          ${opsRingSvg(c.progress, c.statusColor)}
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(c.eventName)}</div>
+            <div style="color:var(--muted);font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${escapeHtml(c.venue||'—')}</div>
+            <div style="font-size:0.72rem;margin-top:0.2rem;"><strong>${c.totalKits}</strong> kit(s) · <span style="color:${OPS_RING[c.statusColor]};font-weight:700;">${c.statusColor}</span></div>
+            <div style="color:var(--muted);font-size:0.68rem;">${escapeHtml(c.date)} ${escapeHtml(c.time||'')} · ${escapeHtml(c.eventId)}</div>
+          </div>
+        </div>
+      </div>`).join('')
+      : '<div style="color:var(--muted);padding:1rem;">No confirmed events today or tomorrow. Ops status appears once events are confirmed and their manifests seeded.</div>';
+  } catch(e) {
+    cards.innerHTML = '<div style="color:#ff6b6b;padding:1rem;">Error: ' + escapeHtml(e.message) +
+      (/key/i.test(e.message) ? ' — set OPS_API_KEY in Script Properties and redeploy.' : '') + '</div>';
+  }
+}
+
+async function openOpsDetail(eventId, name) {
+  _opsCurrentEvent = eventId;
+  document.getElementById('opsDetailTitle').textContent = '🚦 ' + name;
+  const body = document.getElementById('opsDetailBody');
+  body.innerHTML = '<div style="color:var(--muted);">Loading manifest &amp; loading map…</div>';
+  document.getElementById('opsDetailOverlay').style.display = 'flex';
+  try {
+    const [man, map] = await Promise.all([
+      opsApi({ action:'opsManifest', eventId:eventId }),
+      opsApi({ action:'opsLoadingMap', eventId:eventId })
+    ]);
+    let html = '';
+    if (man.success && man.data.length) {
+      // Progress-by-stage counts
+      const counts = { WAREHOUSE:0, LOADED:0, DROPPED:0, RETURNING:0, SANITIZED:0 };
+      man.data.forEach(m => { counts[m.status] = (counts[m.status]||0) + 1; });
+      html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.9rem;">' +
+        Object.keys(counts).map(s => `<span style="font-size:0.68rem;font-weight:700;padding:0.25rem 0.55rem;border-radius:99px;background:${OPS_STATE_COLOR[s]}22;color:${OPS_STATE_COLOR[s]};border:1px solid ${OPS_STATE_COLOR[s]};">${s} ${counts[s]}</span>`).join('') + '</div>';
+    }
+    if (map.success && map.data.length) {
+      html += '<div style="font-size:0.7rem;color:var(--gold);font-weight:700;margin-bottom:0.4rem;">🚚 TRUCK LOADING ORDER</div>';
+      html += '<div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.5rem;">' + escapeHtml(map.message) + '</div>';
+      html += map.data.map(z => `
+        <div style="border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.8rem;margin-bottom:0.5rem;">
+          <div style="color:var(--gold);font-size:0.8rem;font-weight:700;">Zone ${escapeHtml(z.zone)} <span style="color:var(--muted);font-weight:400;">— ${escapeHtml(z.position)}</span></div>
+          ${z.kits.length ? z.kits.map(k => {
+            const sc = OPS_STATE_COLOR[k.status]||'#9b8068';
+            return `<div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;padding:0.3rem 0;border-bottom:1px solid var(--border);">
+              <span>#${k.seq} ${escapeHtml(k.kitName)} ×${k.qty}</span>
+              <span style="color:${sc};font-weight:700;font-size:0.66rem;">${escapeHtml(k.status)}</span></div>`;
+          }).join('') : '<div style="color:var(--muted);font-size:0.72rem;">no kits</div>'}
+        </div>`).join('');
+    } else {
+      html += '<div style="color:var(--muted);font-size:0.82rem;">No manifest for this event yet. Tap "+ Seed Manifest" to build one from your defined kits (CF_Kits), then warehouse staff can start scanning.</div>';
+    }
+    body.innerHTML = html;
+  } catch(e) { body.innerHTML = '<div style="color:#ff6b6b;">Error: ' + escapeHtml(e.message) + '</div>'; }
+}
+
+async function opsSeedFromAdmin() {
+  if (!_opsCurrentEvent) return;
+  if (!confirm('Seed this event\'s manifest from all defined kits (CF_Kits)? You can then edit Zone/Sequence/Qty in the sheet.')) return;
+  try {
+    const j = await opsApi({ action:'opsSeedManifest', eventId:_opsCurrentEvent });
+    showToast(j.success ? ('✓ ' + j.message) : j.message, j.success ? 'gold' : 'red');
+    if (j.success) { openOpsDetail(_opsCurrentEvent, document.getElementById('opsDetailTitle').textContent.replace('🚦 ','')); loadOpsStatus(); }
   } catch(e) { showToast('Error: ' + e.message, 'red'); }
 }
 
