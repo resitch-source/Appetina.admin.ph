@@ -1736,9 +1736,9 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 <!-- POS RECEIPT (printable) is generated in a popup window -->
 
 <!-- STAFF MODAL -->
-<div class="overlay" id="staffOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="staffOverlay" style="display:none">
   <div class="modal" id="staffBox" style="max-width:460px;">
-    <div class="modal-header"><div class="modal-title" id="staffModalTitle">👤 New Staff</div><button class="modal-close" onclick="closeStaffModal()">✕</button></div>
+    <div class="modal-header"><div class="modal-title" id="staffModalTitle">👤 New Staff</div><button aria-label="Close" class="modal-close" onclick="closeStaffModal()">✕</button></div>
     <div style="padding:1.25rem;">
       <div style="margin-bottom:0.85rem;"><label class="entry-label">Name *</label><input type="text" class="entry-input" id="stfName"/></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
@@ -1760,9 +1760,9 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- SHIFT MODAL -->
-<div class="overlay" id="shiftOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="shiftOverlay" style="display:none">
   <div class="modal" id="shiftBox" style="max-width:460px;">
-    <div class="modal-header"><div class="modal-title">📅 Assign Shift</div><button class="modal-close" onclick="closeShiftModal()">✕</button></div>
+    <div class="modal-header"><div class="modal-title">📅 Assign Shift</div><button aria-label="Close" class="modal-close" onclick="closeShiftModal()">✕</button></div>
     <div style="padding:1.25rem;">
       <div style="margin-bottom:0.85rem;"><label class="entry-label">Staff *</label><select class="entry-input" id="shfStaff"></select></div>
       <div style="margin-bottom:0.85rem;"><label class="entry-label">Event (optional)</label><select class="entry-input" id="shfEvent"><option value="">— none —</option></select></div>
@@ -1780,17 +1780,17 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- PAYROLL RUN MODAL -->
-<div class="overlay" id="payrollOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="payrollOverlay" style="display:none">
   <div class="modal" id="payrollBox" style="max-width:520px;">
-    <div class="modal-header"><div class="modal-title">💵 Run Payroll</div><button class="modal-close" onclick="closePayrollModal()">✕</button></div>
+    <div class="modal-header"><div class="modal-title">💵 Run Payroll</div><button aria-label="Close" class="modal-close" onclick="closePayrollModal()">✕</button></div>
     <div style="padding:1.25rem;" id="payrollBody"></div>
   </div>
 </div>
 
 <!-- SUPPLIER MODAL -->
-<div class="overlay" id="supOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="supOverlay" style="display:none">
   <div class="modal" id="supBox" style="max-width:460px;">
-    <div class="modal-header"><div class="modal-title">🏭 New Supplier</div><button class="modal-close" onclick="closeSupplierModal()">✕</button></div>
+    <div class="modal-header"><div class="modal-title">🏭 New Supplier</div><button aria-label="Close" class="modal-close" onclick="closeSupplierModal()">✕</button></div>
     <div style="padding:1.25rem;">
       <div style="margin-bottom:0.85rem;"><label class="entry-label">Name *</label><input type="text" class="entry-input" id="supName" placeholder="e.g. Iligan Meat Mart"/></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
@@ -1811,9 +1811,9 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- PURCHASE ORDER MODAL -->
-<div class="overlay" id="poOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="poOverlay" style="display:none">
   <div class="modal" id="poBox" style="max-width:600px;">
-    <div class="modal-header"><div class="modal-title">📦 New Purchase Order</div><button class="modal-close" onclick="closePOModal()">✕</button></div>
+    <div class="modal-header"><div class="modal-title">📦 New Purchase Order</div><button aria-label="Close" class="modal-close" onclick="closePOModal()">✕</button></div>
     <div style="padding:1.25rem;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
         <div><label class="entry-label">Supplier</label><select class="entry-input" id="poSupplier"></select></div>
@@ -1835,19 +1835,19 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- PO DETAIL / RECEIVE MODAL -->
-<div class="overlay" id="poDetailOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="poDetailOverlay" style="display:none">
   <div class="modal" id="poDetailBox" style="max-width:560px;">
-    <div class="modal-header"><div class="modal-title" id="poDetailTitle">Purchase Order</div><button class="modal-close" onclick="closePODetail()">✕</button></div>
+    <div class="modal-header"><div class="modal-title" id="poDetailTitle">Purchase Order</div><button aria-label="Close" class="modal-close" onclick="closePODetail()">✕</button></div>
     <div style="padding:1.25rem;" id="poDetailBody"></div>
   </div>
 </div>
 
 <!-- CHECKLIST BUILDER MODAL -->
-<div class="overlay" id="chkOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="chkOverlay" style="display:none">
   <div class="modal" id="chkBox" style="max-width:560px;">
     <div class="modal-header">
       <div class="modal-title">📋 New Checklist</div>
-      <button class="modal-close" onclick="closeChecklistModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeChecklistModal()">✕</button>
     </div>
     <div style="padding:1.25rem;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
@@ -1874,33 +1874,33 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- RUN INSPECTION MODAL -->
-<div class="overlay" id="inspOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="inspOverlay" style="display:none">
   <div class="modal" id="inspBox" style="max-width:560px;">
     <div class="modal-header">
       <div class="modal-title" id="inspTitle">🔍 Run Inspection</div>
-      <button class="modal-close" onclick="closeInspModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeInspModal()">✕</button>
     </div>
     <div style="padding:1.25rem;" id="inspBody"></div>
   </div>
 </div>
 
 <!-- NCR DETAIL MODAL -->
-<div class="overlay" id="ncrOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="ncrOverlay" style="display:none">
   <div class="modal" id="ncrBox" style="max-width:520px;">
     <div class="modal-header">
       <div class="modal-title" id="ncrTitle">⚠️ NCR</div>
-      <button class="modal-close" onclick="closeNCRModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeNCRModal()">✕</button>
     </div>
     <div style="padding:1.25rem;" id="ncrBody"></div>
   </div>
 </div>
 
 <!-- NEW TICKET MODAL -->
-<div class="overlay" id="ticketOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="ticketOverlay" style="display:none">
   <div class="modal" id="ticketBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title">🎫 New Ticket</div>
-      <button class="modal-close" onclick="closeTicketModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeTicketModal()">✕</button>
     </div>
     <div style="padding:1.25rem;">
       <div style="margin-bottom:0.85rem;">
@@ -1943,22 +1943,22 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- TICKET DETAIL MODAL -->
-<div class="overlay" id="tkDetailOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="tkDetailOverlay" style="display:none">
   <div class="modal" id="tkDetailBox" style="max-width:560px;">
     <div class="modal-header">
       <div class="modal-title" id="tkDetailTitle">Ticket</div>
-      <button class="modal-close" onclick="closeTicketDetail()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeTicketDetail()">✕</button>
     </div>
     <div style="padding:1.25rem;" id="tkDetailBody"></div>
   </div>
 </div>
 
 <!-- NEW DELIVERY MODAL -->
-<div class="overlay" id="delivOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="delivOverlay" style="display:none">
   <div class="modal" id="delivBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title">🚚 New Delivery</div>
-      <button class="modal-close" onclick="closeDeliveryModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeDeliveryModal()">✕</button>
     </div>
     <div style="padding:1.25rem;">
       <div style="margin-bottom:0.85rem;">
@@ -1991,22 +1991,22 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- DELIVERY DETAIL / DRIVER LINK MODAL -->
-<div class="overlay" id="delivLinkOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="delivLinkOverlay" style="display:none">
   <div class="modal" id="delivLinkBox" style="max-width:460px;">
     <div class="modal-header">
       <div class="modal-title">🔗 Driver Link</div>
-      <button class="modal-close" onclick="closeDelivLink()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeDelivLink()">✕</button>
     </div>
     <div style="padding:1.25rem;" id="delivLinkBody"></div>
   </div>
 </div>
 
 <!-- INVENTORY ITEM MODAL -->
-<div class="overlay" id="invOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="invOverlay" style="display:none">
   <div class="modal" id="invBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title" id="invModalTitle">📦 Add Item</div>
-      <button class="modal-close" onclick="closeInvModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeInvModal()">✕</button>
     </div>
     <div style="padding:1.25rem;">
       <div style="margin-bottom:0.85rem;">
@@ -2123,11 +2123,11 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- SCANNER MODAL -->
-<div class="overlay" id="scanOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="scanOverlay" style="display:none">
   <div class="modal" id="scanBox" style="max-width:480px;">
     <div class="modal-header">
       <div class="modal-title">📷 Scan Item</div>
-      <button class="modal-close" onclick="closeScannerModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeScannerModal()">✕</button>
     </div>
     <div style="padding:1.25rem;">
       <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
@@ -2160,11 +2160,11 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- ADD LEDGER ENTRY MODAL -->
-<div class="overlay" id="entryOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="entryOverlay" style="display:none">
   <div class="modal" id="entryBox" style="max-width:480px;">
     <div class="modal-header">
       <div class="modal-title">💰 Add Ledger Entry</div>
-      <button class="modal-close" onclick="closeEntryModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeEntryModal()">✕</button>
     </div>
     <div style="padding:1.25rem;">
       <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
@@ -2208,11 +2208,11 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- ASSET MODAL -->
-<div class="overlay" id="assetOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="assetOverlay" style="display:none">
   <div class="modal" id="assetBox" style="max-width:500px;">
     <div class="modal-header">
       <div class="modal-title" id="assetModalTitle">🏛️ Add Asset</div>
-      <button class="modal-close" onclick="closeAssetModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeAssetModal()">✕</button>
     </div>
     <div style="padding:1.25rem;">
       <div style="margin-bottom:0.85rem;">
@@ -2282,11 +2282,11 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- DETAIL MODAL -->
-<div class="overlay" id="modalOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="modalOverlay" style="display:none">
   <div class="modal" id="modalBox">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle">Booking Details</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button aria-label="Close" class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
     <div class="status-row">
@@ -2318,39 +2318,28 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <button class="save-status-btn" id="payRecordBtn" onclick="recordModalPayment(false)">💰 Record</button>
       <button class="save-status-btn" id="fullyPaidBtn" onclick="recordModalPayment(true)" style="background:#7cb342;border-color:#7cb342;">✓ Fully Paid</button>
       <button class="save-status-btn" onclick="openKitchenSheet()" style="background:#ba68c8;border-color:#ba68c8;" title="Ingredients market list & prep sheet scaled to this event's guest count">👨‍🍳 Kitchen Sheet</button>
+      <button class="save-status-btn" onclick="openQuoteEditor(currentRef)" style="background:var(--gold);border-color:var(--gold);color:#1a1209;" title="Edit and print a quotation for this booking">📝 Quotation</button>
       <button class="save-status-btn" onclick="openEditBooking()" style="background:#4fa3ff;border-color:#4fa3ff;">✏️ Edit Booking</button>
     </div>
   </div>
 </div>
 
-<!-- OPS EVENT DETAIL MODAL -->
-<div class="overlay" id="opsDetailOverlay" style="display:none">
-  <div class="modal" style="max-width:560px;padding:1.25rem 1.5rem;">
-    <div class="modal-title" id="opsDetailTitle">🚦 Event Ops</div>
-    <div id="opsDetailBody"></div>
-    <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-      <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('opsDetailOverlay').style.display='none'">Close</button>
-      <button class="refresh-btn" style="flex:1;" id="opsSeedBtn" onclick="opsSeedFromAdmin()">+ Seed Manifest</button>
-    </div>
-  </div>
-</div>
-
 <!-- USER EDITOR MODAL -->
-<div class="overlay" id="userEditOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="userEditOverlay" style="display:none">
   <div class="modal" style="max-width:440px;padding:1.25rem 1.5rem;">
     <div class="modal-title" id="userEditTitle">Add User</div>
-    <label class="entry-label">Full Name</label>
+    <label class="entry-label" for="ueName">Full Name</label>
     <input class="entry-input" id="ueName" style="margin-bottom:0.6rem;"/>
-    <label class="entry-label">Email</label>
+    <label class="entry-label" for="ueEmail">Email</label>
     <input class="entry-input" id="ueEmail" type="email" style="margin-bottom:0.6rem;"/>
-    <label class="entry-label">Role</label>
+    <label class="entry-label" for="ueRole">Role</label>
     <select class="entry-input" id="ueRole" style="margin-bottom:0.6rem;">
       <option value="viewer">Viewer — read only</option>
       <option value="staff">Staff — day-to-day operations</option>
       <option value="manager">Manager — + config &amp; branding</option>
       <option value="owner">Owner — full control</option>
     </select>
-    <label class="entry-label">Password <span id="uePassHint" style="color:var(--muted);font-size:0.6rem;">(min 6 chars)</span></label>
+    <label class="entry-label" for="uePass">Password <span id="uePassHint" style="color:var(--muted);font-size:0.6rem;">(min 6 chars)</span></label>
     <input class="entry-input" id="uePass" type="password" placeholder="Leave blank to keep current" style="margin-bottom:0.6rem;"/>
     <label style="display:flex;gap:0.5rem;align-items:center;font-size:0.82rem;margin-bottom:1rem;cursor:pointer;">
       <input type="checkbox" id="ueActive" checked style="width:16px;height:16px;accent-color:#4fa3ff;"/> Active
@@ -2362,8 +2351,58 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   </div>
 </div>
 
+<!-- EVENT COSTING MODAL -->
+<div class="overlay" role="dialog" aria-modal="true" id="wfCostOverlay" style="display:none">
+  <div class="modal" style="max-width:460px;padding:1.25rem 1.5rem;">
+    <div class="modal-title">💰 Event Costing</div>
+    <div id="wfCostBody"></div>
+    <button class="refresh-btn" style="width:100%;margin-top:1rem;" onclick="document.getElementById('wfCostOverlay').style.display='none'">Close</button>
+  </div>
+</div>
+
+<!-- QUOTATION EDITOR MODAL -->
+<div class="overlay" role="dialog" aria-modal="true" id="quoteOverlay" style="display:none">
+  <div class="modal" style="max-width:640px;padding:1.25rem 1.5rem;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title" id="quoteTitle">📝 Quotation</div>
+    <div id="quoteMeta" style="font-size:0.76rem;color:var(--muted);margin-bottom:0.8rem;"></div>
+
+    <div style="overflow-x:auto;">
+      <table style="width:100%;min-width:480px;">
+        <thead><tr><th style="width:44%;">Description</th><th style="width:15%;">Qty</th><th style="width:20%;">Unit Price</th><th style="width:15%;">Amount</th><th></th></tr></thead>
+        <tbody id="quoteLines"></tbody>
+      </table>
+    </div>
+    <button class="refresh-btn" style="font-size:0.76rem;margin-top:0.4rem;" onclick="quoteAddLine()">+ Add line item</button>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:1rem;">
+      <div><label class="entry-label">Discount label</label><input class="entry-input" id="quoteDiscLabel" placeholder="e.g. Loyalty discount"/></div>
+      <div><label class="entry-label">Discount amount (₱)</label><input class="entry-input" id="quoteDiscAmt" type="number" min="0" value="0" oninput="quoteRecalc()"/></div>
+      <div><label class="entry-label">Validity (days)</label><input class="entry-input" id="quoteValidity" type="number" min="1" value="30"/></div>
+      <div></div>
+    </div>
+    <label class="entry-label" style="margin-top:0.6rem;display:block;">Notes to client</label>
+    <textarea class="entry-input" id="quoteNotes" rows="2" style="resize:vertical;"></textarea>
+    <label class="entry-label" style="margin-top:0.6rem;display:block;">Terms &amp; conditions</label>
+    <textarea class="entry-input" id="quoteTerms" rows="3" style="resize:vertical;"></textarea>
+
+    <div style="display:flex;justify-content:space-between;padding:0.7rem 0.2rem;margin-top:0.8rem;border-top:1px solid var(--border);font-size:0.9rem;">
+      <span>Subtotal</span><span id="quoteSubtotal">₱0</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.3rem 0.2rem;font-weight:800;font-size:1.05rem;color:var(--gold);">
+      <span>Total</span><span id="quoteTotal">₱0</span>
+    </div>
+
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">
+      <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('quoteOverlay').style.display='none'">Close</button>
+      <button class="refresh-btn" style="flex:1;background:#4fa3ff;color:#fff;border-color:#4fa3ff;" onclick="quoteSave()">💾 Save</button>
+      <button class="refresh-btn" style="flex:1;background:var(--gold);color:#1a1209;border-color:var(--gold);" onclick="quoteSaveAndPrint()">🖨 Save &amp; Print</button>
+    </div>
+    <div id="quoteSaveStatus" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem;"></div>
+  </div>
+</div>
+
 <!-- CLIENT DETAIL MODAL -->
-<div class="overlay" id="clDetailOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="clDetailOverlay" style="display:none">
   <div class="modal" style="max-width:600px;padding:1.25rem 1.5rem;">
     <div class="modal-title" id="clDetailTitle">👤 Client</div>
     <div id="clDetailBody"></div>
@@ -2372,7 +2411,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- EDIT BOOKING: MAP PIN PICKER -->
-<div class="overlay" id="editMapOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="editMapOverlay" style="display:none">
   <div class="modal" style="max-width:640px;padding:1.1rem 1.25rem;">
     <div class="modal-title">📍 Pin the Venue</div>
     <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem;">Tap the map to drop a pin. The address is looked up automatically (OpenStreetMap) — you can still edit the text afterwards.</p>
@@ -2386,7 +2425,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- EDIT BOOKING MODAL -->
-<div class="overlay" id="editBkOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="editBkOverlay" style="display:none">
   <div class="modal" style="max-width:680px;padding:1.25rem 1.5rem;">
     <div class="modal-title" id="editBkTitle">✏️ Edit Booking</div>
     <div id="editBkBody" style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;"></div>
@@ -2399,7 +2438,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 </div>
 
 <!-- RECIPE / INGREDIENTS MODAL -->
-<div class="overlay" id="recipeOverlay" style="display:none">
+<div class="overlay" role="dialog" aria-modal="true" id="recipeOverlay" style="display:none">
   <div class="modal" style="max-width:640px;padding:1.25rem 1.5rem;">
     <div class="modal-title" id="recipeTitle">🧾 Ingredients & Costing</div>
     <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.8rem;">Quantities are <strong>per guest</strong>. Pick from inventory to link live cost &amp; stock, or type a free ingredient with a manual unit cost. Used for dish costing, event market lists, and kitchen prep sheets.</p>
@@ -2420,14 +2459,14 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <!-- MENU TRENDS MODAL -->
 <div id="trendsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;padding:2rem 1rem;overflow-y:auto;">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:640px;animation:slideUp 0.25s ease;">
     <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
       <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);">🤖 AI Menu Trends</div>
-      <button onclick="document.getElementById('trendsOverlay').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;">✕</button>
+      <button aria-label="Close" onclick="document.getElementById('trendsOverlay').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;">✕</button>
     </div>
     <div id="trendsBody" style="padding:1.25rem 1.5rem;">
       <div style="text-align:center;padding:2rem;color:var(--muted);">
@@ -2679,21 +2718,6 @@ function parseSheetDate(val) {
   const d = new Date(s);
   if (!isNaN(d)) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   return s;
-}
-function parseSheetTime(val) {
-  if (!val) return '';
-  const s = String(val);
-  // Google Sheets time-only comes as ISO with 1899-12-30 date (Excel epoch)
-  if (s.includes('T') || s.includes('1899')) {
-    const d = new Date(s);
-    if (!isNaN(d)) {
-      // Use local hours/minutes since GAS formats in script timezone
-      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-    }
-  }
-  // Already HH:mm
-  if (/^\d{1,2}:\d{2}/.test(s)) return s.substring(0,5);
-  return '';
 }
 
 // -- STATS ------------------------------------------------------
@@ -3105,7 +3129,6 @@ function closeLightbox() {
 
 // -- INVENTORY MANAGEMENT (in-page) ---------------------------
 // Replaces the old new-window opener; inventory now lives as a tab.
-function openInventory() { switchTab('inventory'); }
 
 // -- TAB SWITCHING ---------------------------------------------
 function switchTab(tab) {
@@ -3153,8 +3176,7 @@ function switchTab(tab) {
   if (tab === 'assets') loadAssets();
   if (tab === 'analytics') loadAnalytics();
   if (tab === 'inventory') loadInventory();
-  if (tab === 'delivery') loadDeliveries();
-  if (tab === 'ops') loadOpsStatus(); else stopDeliveryPolling();
+  if (tab === 'delivery') loadDeliveries(); else stopDeliveryPolling();
   if (tab === 'support') loadTickets();
   if (tab === 'qc') loadQC();
   if (tab === 'purchasing') loadPurchasing();
@@ -3517,15 +3539,6 @@ function reconcileNow(silent) {
 }
 
 // Convert a CF_Inventory sheet row into the internal item shape used by the UI
-function cfRowToItem(r) {
-  return {
-    id: r.ItemID, sku: r.SKU, name: r.Name, category: r.Category,
-    barcode: r.Barcode, rfid: r.RFID,
-    qty: Number(r.Qty) || 0, unit: r.Unit,
-    minStock: Number(r.MinStock) || 0, cost: Number(r.Cost) || 0,
-    location: r.Location, vendor: r.Vendor
-  };
-}
 
 // Keep a local copy for offline viewing
 function cacheInventoryLocal() {
@@ -3536,19 +3549,6 @@ function cacheInventoryLocal() {
 function saveInventory() { cacheInventoryLocal(); }
 
 // One-time bulk upload of existing local/seed items into the sheet
-function migrateInventoryToSheets(items) {
-  if (!items || !items.length) return;
-  fetch(SCRIPT_URL + '?action=cfInvSeed&token=' + encodeURIComponent(sessionToken)
-        + '&items=' + encodeURIComponent(JSON.stringify(items)) + '&ts=' + Date.now())
-    .then(r => r.json())
-    .then(json => {
-      if (json.success && json.added > 0) {
-        showToast('✓ Migrated ' + json.added + ' items to Sheets', 'gold');
-        loadInventory();
-      }
-    })
-    .catch(() => {});
-}
 
 function seedInventory() {
   _inventory = [
@@ -4105,7 +4105,7 @@ function addPOSLine(prefill) {
     <select class="entry-input pos-item-sel" id="posName${idx}" style="padding:0.45rem 0.6rem;font-size:0.82rem;" onchange="onPOSItemSel(${idx})">${posLineOptionsHTML()}</select>
     <input type="number" class="entry-input" id="posQty${idx}" placeholder="Qty" min="0" value="1" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOSTotal()"/>
     <input type="number" class="entry-input" id="posPrice${idx}" placeholder="₱" min="0" step="0.01" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOSTotal()"/>
-    <button onclick="this.parentElement.remove();updatePOSTotal()" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:1rem;">✕</button>`;
+    <button aria-label="Close" onclick="this.parentElement.remove();updatePOSTotal()" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:1rem;">✕</button>`;
   document.getElementById('posSaleLines').appendChild(div);
   if (!_posMenu) loadPOSMenu();
 }
@@ -4259,6 +4259,7 @@ function renderPOSHistory() {
       <div style="text-align:right;">
         <div style="font-weight:700;color:var(--gold);">₱${s.total.toLocaleString()}</div>
         <button onclick="posPrintReceipt('${s.id}')" style="background:var(--card);border:1px solid var(--border2);color:var(--gold);padding:2px 8px;border-radius:5px;font-size:0.64rem;cursor:pointer;margin-top:2px;">🧾 Receipt</button>
+        ${s.type==='Sale' ? `<button onclick="openQuoteEditor('${s.id}')" style="background:var(--card);border:1px solid var(--gold);color:var(--gold);padding:2px 8px;border-radius:5px;font-size:0.64rem;cursor:pointer;margin-top:2px;margin-left:4px;">📝 Quote</button>` : ''}
       </div>
     </div>`).join('');
 }
@@ -4830,7 +4831,7 @@ function renderRoster() {
             <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(s.staffName)}</div>
             <div style="font-size:0.72rem;color:var(--muted);">${escapeHtml(s.startTime)}–${escapeHtml(s.endTime)} · ${s.hours}h${s.eventRef?' · '+escapeHtml(s.eventRef):''}${s.role?' · '+escapeHtml(s.role):''}</div>
           </div>
-          <button onclick="deleteShift('${s.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;">🗑️</button>
+          <button aria-label="Delete" onclick="deleteShift('${s.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;">🗑️</button>
         </div>`).join('')}
     </div>`;
   }).join('') || '<div style="text-align:center;padding:2rem;color:var(--muted);">No shifts this week.</div>';
@@ -5255,7 +5256,7 @@ function addPOLine(prefill) {
     <datalist id="poInvList${idx}">${invOpts}</datalist>
     <input type="number" class="entry-input" id="poQty${idx}" placeholder="Qty" min="0" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOTotal()"/>
     <input type="number" class="entry-input" id="poPrice${idx}" placeholder="₱/unit" min="0" step="0.01" style="padding:0.45rem 0.5rem;font-size:0.82rem;" oninput="updatePOTotal()"/>
-    <button onclick="this.parentElement.remove();updatePOTotal()" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:1rem;">✕</button>`;
+    <button aria-label="Close" onclick="this.parentElement.remove();updatePOTotal()" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:1rem;">✕</button>`;
   document.getElementById('poLines').appendChild(div);
   if (prefill) {
     document.getElementById('poName'+idx).value = prefill.name;
@@ -6279,23 +6280,6 @@ function openAddAssetModal() {
 }
 
 // Old standalone asset-add (kept for reference; no longer wired to the button)
-function openAddAssetModalLegacy() {
-  _editingAsset = null;
-  document.getElementById('assetModalTitle').textContent = '🏛️ Add Asset';
-  document.getElementById('assetDeleteBtn').style.display = 'none';
-  document.getElementById('assetName').value = '';
-  document.getElementById('assetCategory').value = 'Equipment';
-  document.getElementById('assetStatus').value = 'Active';
-  document.getElementById('assetPurchaseDate').value = new Date().toISOString().split('T')[0];
-  document.getElementById('assetCost').value = '';
-  document.getElementById('assetLife').value = 5;
-  document.getElementById('assetSalvage').value = 0;
-  document.getElementById('assetLocation').value = '';
-  document.getElementById('assetLastMaint').value = '';
-  document.getElementById('assetNextMaint').value = '';
-  document.getElementById('assetNotes').value = '';
-  document.getElementById('assetOverlay').style.display = 'flex';
-}
 
 function openEditAssetModal(id) {
   const a = _assets.find(x => x.id === id);
@@ -6506,7 +6490,7 @@ function renderLedger() {
     const icon = isIncome ? '💵' : '💸';
     const delBtn = e.auto
       ? '<span style="font-size:0.65rem;color:var(--muted);background:var(--card);padding:2px 6px;border-radius:8px;">AUTO</span>'
-      : `<button onclick="deleteLedgerEntry('${e.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;">🗑️</button>`;
+      : `<button aria-label="Delete" onclick="deleteLedgerEntry('${e.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;">🗑️</button>`;
     return `<div class="ledger-entry">
       <span style="font-size:1.2rem;">${icon}</span>
       <div style="flex:1;min-width:0;">
@@ -6663,7 +6647,6 @@ function setEl(id, val) { const el = document.getElementById(id); if (el) el.tex
 // Today's date as YYYY-MM-DD for date inputs
 function todayISO() { return new Date().toLocaleDateString('en-CA'); }
 // Default a date input to today if it's currently empty
-function defaultToday(id) { const el = document.getElementById(id); if (el && !el.value) el.value = todayISO(); }
 
 function renderSmartAlerts(bookings, pending, upcoming) {
   const alerts = [];
@@ -7417,7 +7400,7 @@ function cfgPkgRowHTML(p) {
     <td><input class="entry-input cfg-price" type="number" min="0" value="${p.price||0}" style="width:110px;"/></td>
     <td><input class="entry-input cfg-pax" type="number" min="0" value="${p.pax||0}" style="width:80px;"/></td>
     <td style="text-align:center;"><input type="checkbox" class="cfg-active" ${p.active?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);"/></td>
-    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button></td>
+    <td><button aria-label="Close" onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button></td>
   </tr>`;
 }
 function renderCfgPackages(pkgs) {
@@ -7465,7 +7448,7 @@ function cfgSetupRowHTML(r) {
     <td><input class="entry-input su-price" type="number" min="0" value="${r.price||0}" style="width:90px;"/></td>
     <td><input class="entry-input su-market" type="number" min="0" value="${r.market||0}" style="width:90px;"/></td>
     <td style="text-align:center;"><input type="checkbox" class="su-active" ${r.active?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);"/></td>
-    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button></td>
+    <td><button aria-label="Close" onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button></td>
   </tr>`;
 }
 function renderCfgSetup(rates) {
@@ -7696,7 +7679,7 @@ function chkRowHTML(c) {
   return `<div style="display:flex;gap:0.5rem;align-items:center;">
     <input type="checkbox" class="ck-active" ${c.active?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);flex-shrink:0;" title="Active"/>
     <input class="entry-input ck-item" value="${escapeHtml(c.item||'')}" style="flex:1;"/>
-    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>
+    <button aria-label="Close" onclick="this.parentElement.remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>
   </div>`;
 }
 function chkAddRow() {
@@ -7738,8 +7721,8 @@ function menuCfgRowHTML(it) {
     <label style="display:flex;align-items:center;gap:4px;font-size:0.66rem;color:var(--muted);cursor:pointer;"><input type="checkbox" class="mc-pkg" ${it.inPackage?'checked':''} style="width:15px;height:15px;accent-color:#7cb342;"/>📦 Pkg</label>
     <label style="display:flex;align-items:center;gap:4px;font-size:0.66rem;color:var(--muted);cursor:pointer;"><input type="checkbox" class="mc-pos" ${it.pos?'checked':''} style="width:15px;height:15px;accent-color:#4fa3ff;"/>💳 POS</label>
     <label style="display:flex;align-items:center;gap:4px;font-size:0.66rem;color:var(--muted);cursor:pointer;"><input type="checkbox" class="mc-best" ${it.best?'checked':''} style="width:15px;height:15px;accent-color:var(--gold);"/>⭐</label>
-    <button onclick="openRecipeModal(this)" title="Ingredients & costing" style="background:none;border:none;cursor:pointer;font-size:0.95rem;">🧾</button>
-    <button onclick="this.closest('.mc-row').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>
+    <button aria-label="Edit ingredients and costing" onclick="openRecipeModal(this)" title="Ingredients & costing" style="background:none;border:none;cursor:pointer;font-size:0.95rem;">🧾</button>
+    <button aria-label="Close" onclick="this.closest('.mc-row').remove()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>
   </div>`;
 }
 
@@ -7828,7 +7811,7 @@ function addRecipeLine(l) {
     <input class="entry-input rec-qty" type="number" min="0" step="0.001" value="${l.qtyPerPax||''}" placeholder="0.15" style="padding:0.4rem 0.4rem;font-size:0.8rem;" oninput="updateRecipeCost()"/>
     <input class="entry-input rec-unit" value="${escapeHtml(l.unit||'')}" placeholder="kg" style="padding:0.4rem 0.5rem;font-size:0.8rem;"/>
     <input class="entry-input rec-cost" type="number" min="0" step="0.01" value="${l.unitCost||''}" placeholder="0.00" style="padding:0.4rem 0.5rem;font-size:0.8rem;" oninput="updateRecipeCost()" ${l.linked?'title="Live cost from inventory"':''}/>
-    <button onclick="this.parentElement.remove();updateRecipeCost()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>`;
+    <button aria-label="Close" onclick="this.parentElement.remove();updateRecipeCost()" style="background:none;border:none;color:#ef5350;cursor:pointer;">✕</button>`;
   document.getElementById('recipeLines').appendChild(div);
 }
 function onRecIngPick(input) {
@@ -8214,107 +8197,6 @@ async function seedRecipes() {
 
 
 // =============================================================
-//  OPS STATUS (admin) — read-only 8-Wave command view
-//  Uses the same ops actions; authenticated via session token.
-// =============================================================
-const OPS_RING = { Red:'#ef5350', Yellow:'#f4a93b', Green:'#66bb6a' };
-const OPS_STATE_COLOR = { WAREHOUSE:'#9b8068', LOADED:'#4fa3ff', DROPPED:'#f4a93b', RETURNING:'#ba68c8', SANITIZED:'#66bb6a' };
-let _opsCurrentEvent = '';
-
-async function opsApi(params) {
-  const q = new URLSearchParams(Object.assign({ token:sessionToken, ts:Date.now() }, params));
-  const res = await fetch(SCRIPT_URL + '?' + q.toString());
-  return res.json();
-}
-
-function opsRingSvg(progress, color) {
-  const r = 30, c = 2*Math.PI*r, off = c - (progress/100)*c;
-  return `<svg width="76" height="76" viewBox="0 0 76 76">
-    <circle cx="38" cy="38" r="${r}" fill="none" stroke="var(--border)" stroke-width="6"/>
-    <circle cx="38" cy="38" r="${r}" fill="none" stroke="${OPS_RING[color]||'#9b8068'}" stroke-width="6"
-      stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 38 38)"/>
-    <text x="38" y="44" text-anchor="middle" font-size="17" font-weight="800" fill="var(--gold)">${progress}%</text>
-  </svg>`;
-}
-
-async function loadOpsStatus() {
-  const cards = document.getElementById('opsCards');
-  const alerts = document.getElementById('opsAlerts');
-  cards.innerHTML = '<div style="color:var(--muted);padding:1rem;">Loading operations…</div>';
-  alerts.innerHTML = '';
-  try {
-    const j = await opsApi({ action:'opsDashboard' });
-    if (!j.success) throw new Error(j.message || 'Failed');
-    const { cards:list, alerts:alertList } = j.data;
-    alerts.innerHTML = (alertList||[]).map(a =>
-      `<div style="background:rgba(239,83,80,0.1);border:1px solid #ef5350;border-left:4px solid #ef5350;border-radius:10px;padding:0.7rem 1rem;font-size:0.85rem;margin-bottom:0.5rem;">${escapeHtml(a)}</div>`).join('');
-    cards.innerHTML = list.length ? list.map(c => `
-      <div class="exec-kpi" style="cursor:pointer;border-left:4px solid ${OPS_RING[c.statusColor]||'#9b8068'};" onclick="openOpsDetail('${escapeHtml(c.eventId)}','${escapeHtml(c.eventName)}')">
-        <div style="display:flex;align-items:center;gap:0.9rem;">
-          ${opsRingSvg(c.progress, c.statusColor)}
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(c.eventName)}</div>
-            <div style="color:var(--muted);font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${escapeHtml(c.venue||'—')}</div>
-            <div style="font-size:0.72rem;margin-top:0.2rem;"><strong>${c.totalKits}</strong> kit(s) · <span style="color:${OPS_RING[c.statusColor]};font-weight:700;">${c.statusColor}</span></div>
-            <div style="color:var(--muted);font-size:0.68rem;">${escapeHtml(c.date)} ${escapeHtml(c.time||'')} · ${escapeHtml(c.eventId)}</div>
-          </div>
-        </div>
-      </div>`).join('')
-      : '<div style="color:var(--muted);padding:1rem;">No confirmed events today or tomorrow. Ops status appears once events are confirmed and their manifests seeded.</div>';
-  } catch(e) {
-    cards.innerHTML = '<div style="color:#ff6b6b;padding:1rem;">Error: ' + escapeHtml(e.message) +
-      (/key/i.test(e.message) ? ' — set OPS_API_KEY in Script Properties and redeploy.' : '') + '</div>';
-  }
-}
-
-async function openOpsDetail(eventId, name) {
-  _opsCurrentEvent = eventId;
-  document.getElementById('opsDetailTitle').textContent = '🚦 ' + name;
-  const body = document.getElementById('opsDetailBody');
-  body.innerHTML = '<div style="color:var(--muted);">Loading manifest &amp; loading map…</div>';
-  document.getElementById('opsDetailOverlay').style.display = 'flex';
-  try {
-    const [man, map] = await Promise.all([
-      opsApi({ action:'opsManifest', eventId:eventId }),
-      opsApi({ action:'opsLoadingMap', eventId:eventId })
-    ]);
-    let html = '';
-    if (man.success && man.data.length) {
-      // Progress-by-stage counts
-      const counts = { WAREHOUSE:0, LOADED:0, DROPPED:0, RETURNING:0, SANITIZED:0 };
-      man.data.forEach(m => { counts[m.status] = (counts[m.status]||0) + 1; });
-      html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.9rem;">' +
-        Object.keys(counts).map(s => `<span style="font-size:0.68rem;font-weight:700;padding:0.25rem 0.55rem;border-radius:99px;background:${OPS_STATE_COLOR[s]}22;color:${OPS_STATE_COLOR[s]};border:1px solid ${OPS_STATE_COLOR[s]};">${s} ${counts[s]}</span>`).join('') + '</div>';
-    }
-    if (map.success && map.data.length) {
-      html += '<div style="font-size:0.7rem;color:var(--gold);font-weight:700;margin-bottom:0.4rem;">🚚 TRUCK LOADING ORDER</div>';
-      html += '<div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.5rem;">' + escapeHtml(map.message) + '</div>';
-      html += map.data.map(z => `
-        <div style="border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.8rem;margin-bottom:0.5rem;">
-          <div style="color:var(--gold);font-size:0.8rem;font-weight:700;">Zone ${escapeHtml(z.zone)} <span style="color:var(--muted);font-weight:400;">— ${escapeHtml(z.position)}</span></div>
-          ${z.kits.length ? z.kits.map(k => {
-            const sc = OPS_STATE_COLOR[k.status]||'#9b8068';
-            return `<div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;padding:0.3rem 0;border-bottom:1px solid var(--border);">
-              <span>#${k.seq} ${escapeHtml(k.kitName)} ×${k.qty}</span>
-              <span style="color:${sc};font-weight:700;font-size:0.66rem;">${escapeHtml(k.status)}</span></div>`;
-          }).join('') : '<div style="color:var(--muted);font-size:0.72rem;">no kits</div>'}
-        </div>`).join('');
-    } else {
-      html += '<div style="color:var(--muted);font-size:0.82rem;">No manifest for this event yet. Tap "+ Seed Manifest" to build one from your defined kits (CF_Kits), then warehouse staff can start scanning.</div>';
-    }
-    body.innerHTML = html;
-  } catch(e) { body.innerHTML = '<div style="color:#ff6b6b;">Error: ' + escapeHtml(e.message) + '</div>'; }
-}
-
-async function opsSeedFromAdmin() {
-  if (!_opsCurrentEvent) return;
-  if (!confirm('Seed this event\'s manifest from all defined kits (CF_Kits)? You can then edit Zone/Sequence/Qty in the sheet.')) return;
-  try {
-    const j = await opsApi({ action:'opsSeedManifest', eventId:_opsCurrentEvent });
-    showToast(j.success ? ('✓ ' + j.message) : j.message, j.success ? 'gold' : 'red');
-    if (j.success) { openOpsDetail(_opsCurrentEvent, document.getElementById('opsDetailTitle').textContent.replace('🚦 ','')); loadOpsStatus(); }
-  } catch(e) { showToast('Error: ' + e.message, 'red'); }
-}
 
 
 // =============================================================
@@ -8388,6 +8270,7 @@ function wfPickEvent() {
 }
 async function wfOpenEvent(ref) {
   _wfEventRef = ref;
+  delete _wfDocCache[ref];
   document.getElementById('wfEventSel').value = ref;
   try {
     const j = await wfApi({ action:'cfWfEventTasks', ref:ref });
@@ -8416,7 +8299,10 @@ function wfSetStage(stageId) {
       <div style="font-weight:700;font-size:1rem;">${m.icon} ${m.label}</div>
       <div style="color:var(--muted);font-size:0.72rem;">${escapeHtml(ev.client||'')} · ${escapeHtml(ev.date||'')} · ${stage.done}/${stage.total} done (${pct}%)</div>
     </div>
-    <button class="refresh-btn" onclick="wfOpenBooking('${escapeHtml(_wfEventRef)}')">Open Booking →</button>`;
+    <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+      <button class="refresh-btn" onclick="wfOpenCosting()">💰 Costing</button>
+      <button class="refresh-btn" onclick="wfOpenBooking('${escapeHtml(_wfEventRef)}')">Open Booking →</button>
+    </div>`;
 
   document.getElementById('wfChecklist').innerHTML = stage.tasks.length ? stage.tasks.map(t => `
     <label style="display:flex;gap:0.7rem;align-items:flex-start;padding:0.6rem 0.2rem;border-bottom:1px solid var(--border);cursor:pointer;">
@@ -8425,6 +8311,7 @@ function wfSetStage(stageId) {
         <div style="font-size:0.86rem;${t.done?'color:var(--muted);text-decoration:line-through;':''}">${escapeHtml(t.task)}</div>
         ${t.done && t.doneAt ? `<div style="font-size:0.64rem;color:var(--muted);">✓ ${escapeHtml(t.doneBy||'admin')} · ${escapeHtml(String(t.doneAt).split(',')[0])}</div>` : ''}
       </div>
+      ${WF_TASK_DOCS[t.taskId] ? `<button class="refresh-btn" style="padding:0.3rem 0.55rem;font-size:0.68rem;flex-shrink:0;" aria-label="Open ${WF_TASK_DOCS[t.taskId].label}" onclick="event.preventDefault();wfOpenDoc('${WF_TASK_DOCS[t.taskId].type}')">📄 ${WF_TASK_DOCS[t.taskId].label}</button>` : ''}
     </label>`).join('') : '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0;">No checklist items for this stage.</div>';
 
   // Embed live ops data into the relevant stages
@@ -8432,6 +8319,8 @@ function wfSetStage(stageId) {
   opsBox.innerHTML = '';
   if (stageId === 'kitchen') {
     opsBox.innerHTML = `<button class="refresh-btn" style="background:#ba68c8;color:#fff;border-color:#ba68c8;" onclick="currentRef='${escapeHtml(_wfEventRef)}';openKitchenSheet()">👨‍🍳 Open Kitchen Sheet (market list & prep)</button>`;
+  } else if (stageId === 'purchasing') {
+    wfEmbedRequirements(opsBox, _wfEventRef);
   } else if (stageId === 'delivery' || stageId === 'setup' || stageId === 'breakdown') {
     wfEmbedOps(opsBox, _wfEventRef);
   }
@@ -8545,8 +8434,8 @@ async function loadUsers() {
         <td style="color:${u.active?'#66bb6a':'#ef5350'};font-size:0.78rem;">${u.active?'Active':'Disabled'}</td>
         <td class="td-muted" style="font-size:0.72rem;">${escapeHtml(String(u.lastLogin||'—').split(',')[0])}</td>
         <td style="white-space:nowrap;">
-          <button class="refresh-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;" onclick='editUser(${JSON.stringify(u).replace(/'/g,"&#39;")})'>✏️</button>
-          <button class="refresh-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;color:#ef5350;" onclick="deleteUser('${escapeHtml(u.email)}')">🗑</button>
+          <button aria-label="Edit" class="refresh-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;" onclick='editUser(${JSON.stringify(u).replace(/'/g,"&#39;")})'>✏️</button>
+          <button aria-label="Delete" class="refresh-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;color:#ef5350;" onclick="deleteUser('${escapeHtml(u.email)}')">🗑</button>
         </td>
       </tr>`).join('')
       : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;">No users yet — add your team.</td></tr>';
@@ -8769,6 +8658,368 @@ async function runAttReport() {
     </table></div><div style="font-size:0.68rem;color:var(--muted);margin-top:0.5rem;">Hours pair each IN with the next OUT. Unpaired punches (forgot to clock out) are ignored — fix in the sheet if needed.</div>`
       : '<div style="color:var(--muted);">No attendance in this range.</div>';
   } catch(e) { box.innerHTML = '<div style="color:#ff6b6b;">' + escapeHtml(e.message) + '</div>'; }
+}
+
+
+// =============================================================
+//  GLOBAL RESILIENCE — network/offline awareness + error safety net
+//  Catches unhandled promise rejections (e.g. .then() chains without
+//  .catch()) so failures surface to the user instead of hanging.
+// =============================================================
+(function installGlobalResilience(){
+  function notify(msg){
+    if (typeof showToast === 'function') showToast(msg, 'red');
+    else console.error(msg);
+  }
+  window.addEventListener('unhandledrejection', function(ev){
+    var m = (ev.reason && (ev.reason.message || ev.reason)) || 'Unknown error';
+    if (/Failed to fetch|NetworkError|Load failed/i.test(String(m))) {
+      notify(navigator.onLine ? 'Network problem — could not reach the server. Tap ↻ Sync to retry.'
+                              : 'You are offline — changes will not save until the connection returns.');
+    } else {
+      notify('Something went wrong: ' + String(m).slice(0,120));
+    }
+    ev.preventDefault();
+  });
+  window.addEventListener('error', function(ev){
+    if (ev && ev.message && /Script error/i.test(ev.message)) return; // cross-origin noise
+  });
+  // Offline banner
+  function offlineUI(){
+    var id='offlineBanner', el=document.getElementById(id);
+    if (!navigator.onLine) {
+      if (!el) {
+        el=document.createElement('div'); el.id=id;
+        el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:7000;background:#c0603a;color:#fff;text-align:center;padding:0.45rem 1rem;font-size:0.8rem;font-weight:600;';
+        el.textContent='⚠️ You are offline — changes cannot be saved right now.';
+        document.body.appendChild(el);
+      }
+    } else if (el) el.remove();
+  }
+  window.addEventListener('online', offlineUI);
+  window.addEventListener('offline', offlineUI);
+  offlineUI();
+})();
+
+
+// =============================================================
+//  UX / A11Y: Escape closes the top modal; focus returns cleanly
+// =============================================================
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  const open = [...document.querySelectorAll('.overlay')]
+    .filter(o => o.style.display && o.style.display !== 'none');
+  if (!open.length) return;
+  const top = open[open.length - 1];
+  // Prefer the modal's own Cancel/Close handler so state stays consistent
+  const closeBtn = [...top.querySelectorAll('button')]
+    .find(b => /close|cancel/i.test(b.textContent) || b.getAttribute('aria-label') === 'Close');
+  if (closeBtn) closeBtn.click(); else top.style.display = 'none';
+});
+
+// Respect reduced-motion preferences
+if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const s = document.createElement('style');
+  s.textContent = '*,*::before,*::after{animation-duration:0.01ms !important;transition-duration:0.01ms !important;}';
+  document.head.appendChild(s);
+}
+
+
+// =============================================================
+//  EVENT DOCUMENTS · COSTING · INVENTORY REQUIREMENTS
+// =============================================================
+// Checklist tasks that produce a document → 📄 button
+const WF_TASK_DOCS = {
+  marketing_3: { type:'quotation',   label:'Quotation' },
+  booking_3:   { type:'agreement',   label:'Service Agreement' },
+  planning_3:  { type:'eventorder',  label:'Event Order & Program' },
+  purchasing_1:{ type:'marketlist',  label:'Market List' },
+  kitchen_1:   { type:'kitchen',     label:'Kitchen Prep Sheet' },
+  setup_2:     { type:'loading',     label:'Truck Loading List' },
+  quality_1:   { type:'qcform',      label:'QC Checklist' },
+  delivery_1:  { type:'deliverynote',label:'Delivery Note' },
+  breakdown_4: { type:'invoice',     label:'Invoice / Statement' }
+};
+let _wfDocCache = {};   // ref → bundle
+
+async function wfGetDocData(ref) {
+  if (_wfDocCache[ref]) return _wfDocCache[ref];
+  const j = await wfApi({ action:'cfEventDocData', ref:ref });
+  if (!j.success) throw new Error(j.error||'Doc data failed');
+  _wfDocCache[ref] = j;
+  return j;
+}
+
+function peso(n){ return '₱' + Number(n||0).toLocaleString('en-PH'); }
+function docFrame(title, d, bodyHtml) {
+  const b = d.brand||{}; const bk = d.booking;
+  const logo = b.logoUrl ? '<img src="'+b.logoUrl+'" style="max-height:70px;max-width:140px;object-fit:contain;"/>' : '';
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>${title} — ${escapeHtml(bk.ref)}</title>
+  <style>body{font-family:Georgia,serif;color:#222;max-width:760px;margin:1.5rem auto;padding:0 1rem;}
+  h1{font-size:1.3rem;margin:0.2rem 0;} h2{font-size:1.05rem;border-bottom:2px solid #C9A84C;padding-bottom:0.2rem;margin-top:1.3rem;}
+  table{width:100%;border-collapse:collapse;margin:0.6rem 0;} th,td{border:1px solid #ccc;padding:0.4rem 0.6rem;font-size:0.85rem;text-align:left;}
+  th{background:#f6efdf;} .meta{font-size:0.85rem;color:#555;} .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:3px double #C9A84C;padding-bottom:0.6rem;}
+  .tot{font-weight:bold;background:#faf5e6;} .sig{display:flex;gap:3rem;margin-top:3rem;} .sig div{flex:1;border-top:1px solid #333;padding-top:0.3rem;font-size:0.8rem;text-align:center;}
+  .noprint{margin:1rem 0;} @media print{.noprint{display:none;}}</style></head><body>
+  <div class="hdr"><div><h1>${escapeHtml(b.name||'Appetina Catering')}</h1>
+  <div class="meta">${escapeHtml(b.tagline||'')}<br>${escapeHtml(b.address||'')} · ${escapeHtml(b.phone||'')} · ${escapeHtml(b.email||'')}</div></div>${logo}</div>
+  <h2>${title}</h2>
+  <div class="meta">Ref <b>${escapeHtml(bk.ref)}</b> · ${escapeHtml(bk.client)} · ${escapeHtml(bk.date)} ${escapeHtml(bk.time)} · ${escapeHtml(bk.venue)} · ${bk.pax} pax</div>
+  ${bodyHtml}
+  <div class="noprint"><button onclick="window.print()" style="padding:0.6rem 1.4rem;font-size:1rem;">🖨 Print / Save PDF</button></div>
+  </body></html>`);
+  w.document.close();
+}
+
+function menuRows(m){
+  return ['beef','fish','chicken','veggie','pasta','drinks','lechon','addons']
+    .filter(k=>m[k]).map(k=>`<tr><td style="text-transform:capitalize;">${k}</td><td>${escapeHtml(m[k])}</td></tr>`).join('');
+}
+
+async function wfOpenDoc(type) {
+  try {
+    const d = await wfGetDocData(_wfEventRef);
+    const bk = d.booking, c = d.costing||{};
+    if (type === 'kitchen') { currentRef = _wfEventRef; openKitchenSheet(); return; }
+    if (type === 'quotation') return docFrame('Quotation', d, `
+      <table><tr><th>Package</th><td>${escapeHtml(bk.pkg)}</td></tr><tr><th>Guests</th><td>${bk.pax} pax</td></tr>
+      <tr><th>Motif</th><td>${escapeHtml(bk.motif)}</td></tr></table>
+      <h2>Proposed Menu</h2><table>${menuRows(bk.menu)}</table>
+      <h2>Investment</h2><table><tr><th>Total Package</th><td>${peso(bk.total)}</td></tr>
+      <tr><th>Reservation (downpayment)</th><td>${peso(bk.down)}</td></tr><tr class="tot"><th>Balance on event day</th><td>${peso(bk.balance)}</td></tr></table>
+      <p class="meta">Quotation valid for 30 days. Prices may adjust with market conditions before confirmation.</p>`);
+    if (type === 'agreement') return docFrame('Catering Service Agreement', d, `
+      <p>This agreement is between <b>${escapeHtml((d.brand||{}).name||'the Caterer')}</b> ("Caterer") and <b>${escapeHtml(bk.client)}</b> ("Client") for catering services on <b>${escapeHtml(bk.date)}</b> at <b>${escapeHtml(bk.venue)}</b> for <b>${bk.pax} guests</b>.</p>
+      <table><tr><th>Package</th><td>${escapeHtml(bk.pkg)} — ${peso(bk.total)}</td></tr>
+      <tr><th>Downpayment</th><td>${peso(bk.down)} (non-refundable reservation)</td></tr>
+      <tr><th>Balance</th><td>${peso(bk.balance)} due on or before event day</td></tr></table>
+      <h2>Terms</h2><ol style="font-size:0.85rem;">
+      <li>Final guest count and menu are locked 7 days before the event.</li>
+      <li>Venue access of at least 3 hours before serving time is provided by the Client.</li>
+      <li>Equipment remains the Caterer's property; losses/damage are chargeable at replacement cost.</li>
+      <li>Cancellation within 14 days of the event forfeits the downpayment.</li>
+      <li>Force majeure: both parties will in good faith reschedule where possible.</li></ol>
+      <div class="sig"><div>Client — ${escapeHtml(bk.client)}</div><div>For the Caterer</div></div>`);
+    if (type === 'eventorder') return docFrame('Event Order & Program', d, `
+      <table><tr><th>Occasion</th><td>${escapeHtml(bk.occasion||bk.eventType)}</td></tr>
+      <tr><th>Motif</th><td>${escapeHtml(bk.motif)}</td></tr><tr><th>Serving time</th><td>${escapeHtml(bk.time)}</td></tr></table>
+      <h2>Menu</h2><table>${menuRows(bk.menu)}</table>
+      <h2>Staffing Waves</h2><table><tr><th>Wave</th><th>Staff</th><th>Start</th><th>End</th></tr>
+      ${(d.waves||[]).map(w=>`<tr><td>${escapeHtml(w.wave)}</td><td>${escapeHtml(w.staff)}</td><td>${escapeHtml(w.start)}</td><td>${escapeHtml(w.end)}</td></tr>`).join('')||'<tr><td colspan="4">— assign in CF_WaveStaffing —</td></tr>'}</table>
+      <h2>Special Notes</h2><p>${escapeHtml(bk.notes||'—')}</p>`);
+    if (type === 'marketlist') return docFrame('Market List', d, `
+      <table><tr><th>Ingredient</th><th>Need</th><th>In Stock</th><th>To Buy</th><th>Est. Cost</th></tr>
+      ${((d.kitchen||{}).marketList||[]).map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${m.need} ${escapeHtml(m.unit)}</td>
+        <td>${m.stock==null?'—':m.stock}</td><td>${m.short==null?'—':(m.short>0?('<b>'+m.short+' '+escapeHtml(m.unit)+'</b>'):'✓ covered')}</td>
+        <td>${peso(m.estCost)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="4">Estimated food cost (${bk.pax} pax)</td><td>${peso((d.kitchen||{}).totalCost)}</td></tr></table>
+      ${((d.kitchen||{}).missingRecipes||[]).length?'<p class="meta">⚠️ No recipe yet: '+d.kitchen.missingRecipes.map(escapeHtml).join(', ')+'</p>':''}`);
+    if (type === 'loading') return docFrame('Truck Loading List', d, `
+      ${(d.loading||[]).map(z=>`<h2>Zone ${escapeHtml(z.zone)} — ${escapeHtml(z.position)}</h2>
+      <table><tr><th>#</th><th>Kit</th><th>Qty</th><th>Status</th></tr>
+      ${z.kits.map(k=>`<tr><td>${k.seq}</td><td>${escapeHtml(k.kitName)}</td><td>${k.qty}</td><td>${escapeHtml(k.status)}</td></tr>`).join('')}</table>`).join('')
+      || '<p>No manifest yet — seed it from the Setup stage.</p>'}
+      <p class="meta">Load C first (back), then B, then A (front) — unload in reverse.</p>`);
+    if (type === 'qcform') return docFrame('Quality Control Checklist', d, `
+      <table><tr><th>Check</th><th>Pass</th><th>Remarks</th></tr>
+      ${['Food temperature at holding (≥60°C hot / ≤5°C cold)','Presentation matches motif '+(bk.motif||''),'Table setup count vs '+bk.pax+' pax','Serving utensils complete & sanitized','Signage / tarpaulin placed','Buffet line flow clear','Staff grooming & uniforms','Client walkthrough sign-off']
+        .map(c=>`<tr><td>${c}</td><td style="width:60px;"></td><td style="width:200px;"></td></tr>`).join('')}</table>
+      <div class="sig"><div>QC Officer</div><div>Client Acknowledgement</div></div>`);
+    if (type === 'deliverynote') return docFrame('Delivery Note', d, `
+      <table><tr><th>Kit</th><th>Qty</th><th>Zone</th></tr>
+      ${(d.manifest||[]).map(m=>`<tr><td>${escapeHtml(m.kit)}</td><td>${m.qty}</td><td>${escapeHtml(m.zone)}</td></tr>`).join('')||'<tr><td colspan="3">No manifest.</td></tr>'}</table>
+      <p class="meta">Received complete and in good condition:</p>
+      <div class="sig"><div>Driver</div><div>Received by (name & signature)</div></div>`);
+    if (type === 'invoice') return docFrame('Statement of Account', d, `
+      <table><tr><th>Description</th><th>Amount</th></tr>
+      <tr><td>${escapeHtml(bk.pkg)} — catering services, ${bk.pax} pax</td><td>${peso(bk.total)}</td></tr>
+      <tr><td>Less: downpayment received</td><td>(${peso(bk.down)})</td></tr>
+      <tr class="tot"><td>BALANCE DUE</td><td>${peso(bk.balance)}</td></tr></table>
+      <p class="meta">Thank you for celebrating with us. Please settle the balance on or before the event date.</p>`);
+  } catch(e) { showToast('Doc error: ' + e.message, 'red'); }
+}
+
+// ── 💰 Event costing modal ──
+async function wfOpenCosting() {
+  if (!_wfEventRef) return;
+  const body = document.getElementById('wfCostBody');
+  body.innerHTML = '<div style="color:var(--muted);">Computing…</div>';
+  document.getElementById('wfCostOverlay').style.display = 'flex';
+  try {
+    const c = await wfApi({ action:'cfEventCosting', ref:_wfEventRef });
+    if (!c.success) throw new Error(c.error||'Failed');
+    const pm = c.margin==null?'—':c.margin+'%';
+    const row=(l,v,cls)=>`<div style="display:flex;justify-content:space-between;padding:0.45rem 0.2rem;border-bottom:1px solid var(--border);${cls||''}"><span>${l}</span><span style="font-weight:700;">${v}</span></div>`;
+    body.innerHTML =
+      `<div style="color:var(--muted);font-size:0.74rem;margin-bottom:0.6rem;">${escapeHtml(c.event.client)} · ${escapeHtml(c.event.date)} · ${c.event.pax} pax · ${escapeHtml(c.event.package)}</div>`
+      + row('🍲 Food (recipes × pax)', peso(c.food))
+      + row('🎪 Setup (kits × cost-per-use)', peso(c.setup))
+      + row('👥 Manpower (planned wave hours × rates)', peso(c.manpower))
+      + row('TOTAL COST', peso(c.total), 'background:rgba(201,168,76,0.08);')
+      + row('Revenue (booking total)', peso(c.revenue))
+      + row('PROFIT', peso(c.profit), 'color:'+(c.profit>=0?'#66bb6a':'#ef5350')+';font-size:1.05rem;')
+      + row('Margin', pm) + row('Cost per pax', c.costPerPax==null?'—':peso(c.costPerPax))
+      + ((c.manpowerLines||[]).length ? '<div style="font-size:0.68rem;color:var(--gold);font-weight:700;margin:0.7rem 0 0.2rem;">MANPOWER DETAIL</div>'
+          + c.manpowerLines.map(m=>`<div style="display:flex;justify-content:space-between;font-size:0.74rem;padding:0.2rem;"><span>${escapeHtml(m.staff)} · ${escapeHtml(m.wave)}</span><span>${m.hours}h × ₱${m.rate} = ${peso(m.total)}</span></div>`).join('') : '')
+      + ((c.setupLines||[]).length ? '<div style="font-size:0.68rem;color:var(--gold);font-weight:700;margin:0.7rem 0 0.2rem;">SETUP DETAIL</div>'
+          + c.setupLines.map(s=>`<div style="display:flex;justify-content:space-between;font-size:0.74rem;padding:0.2rem;"><span>${escapeHtml(s.kit)} ×${s.qty}</span><span>${peso(s.total)}</span></div>`).join('') : '')
+      + buildCostNotes(c.notes);
+  } catch(e) { body.innerHTML = '<div style="color:#ff6b6b;">' + escapeHtml(e.message) + '</div>'; }
+}
+function buildCostNotes(n) {
+  if (!n) return '';
+  const bits = [];
+  if ((n.missingRecipes||[]).length) bits.push('🍲 No recipe yet for: ' + n.missingRecipes.join(', ') + ' — food cost is understated.');
+  if ((n.kitsWithoutCost||[]).length) bits.push('🎪 Kits without Cost_Per_Use (counted ₱0): ' + n.kitsWithoutCost.join(', ') + ' — add the column value in CF_Kits.');
+  if (n.unparsedShifts) bits.push('👥 ' + n.unparsedShifts + ' staffing row(s) had unreadable times and were excluded.');
+  return bits.length ? '<div style="font-size:0.68rem;color:#f4a93b;margin-top:0.8rem;line-height:1.5;">' + bits.map(escapeHtml).join('<br>') + '</div>' : '';
+}
+
+// ── Purchasing stage: auto-sync requirements to inventory ──
+async function wfEmbedRequirements(box, ref) {
+  box.innerHTML = '<div style="font-size:0.74rem;color:var(--muted);">Syncing ingredients to inventory requirements…</div>';
+  try {
+    const s = await wfApi({ action:'cfReqSync', ref:ref });
+    if (!s.success) throw new Error(s.error||'Sync failed');
+    let html = `<div style="font-size:0.7rem;color:var(--gold);font-weight:700;margin-bottom:0.4rem;">🧾 INVENTORY REQUIREMENTS <span style="color:var(--muted);font-weight:400;">· auto-synced to CF_EventRequirements</span></div>`;
+    html += `<div style="font-size:0.76rem;margin-bottom:0.5rem;">${s.ingredients} ingredient(s) required · <span style="color:${s.toBuy?'#f4a93b':'#66bb6a'};font-weight:700;">${s.toBuy ? s.toBuy + ' to buy' : 'all covered by stock'}</span></div>`;
+    if ((s.missingRecipes||[]).length) html += `<div style="font-size:0.7rem;color:#f4a93b;margin-bottom:0.4rem;">⚠️ No recipe: ${s.missingRecipes.map(escapeHtml).join(', ')}</div>`;
+    html += `<button class="refresh-btn" style="font-size:0.72rem;" onclick="wfOpenDoc('marketlist')">📄 Open Market List</button>`;
+    box.innerHTML = html;
+  } catch(e) { box.innerHTML = '<div style="font-size:0.74rem;color:#ff6b6b;">' + escapeHtml(e.message) + '</div>'; }
+}
+
+
+// =============================================================
+//  QUOTATION EDITOR — editable line items, persisted, printable
+//  Works for a booking (BK-...) or a POS order (POS-...).
+// =============================================================
+let _quoteRef = '', _quoteLines = [], _quoteData = null;
+
+function peso2(n){ return '₱' + Math.round(Number(n||0)).toLocaleString('en-PH'); }
+
+async function openQuoteEditor(ref) {
+  if (!ref) { showToast('No reference to quote', 'red'); return; }
+  _quoteRef = ref;
+  document.getElementById('quoteTitle').textContent = '📝 Quotation — ' + ref;
+  document.getElementById('quoteMeta').textContent = 'Loading…';
+  document.getElementById('quoteLines').innerHTML = '';
+  document.getElementById('quoteSaveStatus').textContent = '';
+  document.getElementById('quoteOverlay').style.display = 'flex';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfQuoteGet&token=' + encodeURIComponent(sessionToken) + '&ref=' + encodeURIComponent(ref) + '&ts=' + Date.now());
+    const j = await res.json();
+    if (!j.success) throw new Error(j.error || 'Failed to load');
+    _quoteData = j;
+    _quoteLines = (j.lines || []).map(l => ({ desc:l.desc||'', qty:Number(l.qty)||0, unit:Number(l.unit)||0 }));
+    document.getElementById('quoteMeta').innerHTML =
+      `${escapeHtml(j.client)} ${j.eventDate ? '· ' + escapeHtml(j.eventDate) : ''} ${j.venue ? '· ' + escapeHtml(j.venue) : ''} ${j.pax ? '· ' + j.pax + ' pax' : ''}
+       ${j.isSaved ? '<span style="color:#66bb6a;">· saved draft</span>' : '<span style="color:var(--muted);">· auto-generated — edit and save</span>'}`;
+    document.getElementById('quoteDiscLabel').value = j.discountLabel || '';
+    document.getElementById('quoteDiscAmt').value = j.discountAmount || 0;
+    document.getElementById('quoteValidity').value = j.validityDays || 30;
+    document.getElementById('quoteNotes').value = j.notes || '';
+    document.getElementById('quoteTerms').value = j.terms || '';
+    quoteRenderLines();
+    quoteRecalc();
+  } catch(e) {
+    document.getElementById('quoteMeta').innerHTML = '<span style="color:#ff6b6b;">' + escapeHtml(e.message) + '</span>';
+  }
+}
+
+function quoteRenderLines() {
+  document.getElementById('quoteLines').innerHTML = _quoteLines.map((l, i) => `
+    <tr>
+      <td><input class="entry-input" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${escapeHtml(l.desc)}" oninput="_quoteLines[${i}].desc=this.value"/></td>
+      <td><input class="entry-input" type="number" min="0" step="0.01" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${l.qty}" oninput="_quoteLines[${i}].qty=Number(this.value)||0;quoteRecalc()"/></td>
+      <td><input class="entry-input" type="number" min="0" step="0.01" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${l.unit}" oninput="_quoteLines[${i}].unit=Number(this.value)||0;quoteRecalc()"/></td>
+      <td style="text-align:right;font-size:0.82rem;padding:0 0.4rem;">${peso2(l.qty*l.unit)}</td>
+      <td><button aria-label="Remove line" class="refresh-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;" onclick="_quoteLines.splice(${i},1);quoteRenderLines();quoteRecalc()">✕</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:0.8rem;">No line items — add one below.</td></tr>';
+}
+function quoteAddLine() {
+  _quoteLines.push({ desc:'', qty:1, unit:0 });
+  quoteRenderLines();
+  quoteRecalc();
+}
+function quoteRecalc() {
+  const subtotal = _quoteLines.reduce((s,l) => s + (Number(l.qty)||0)*(Number(l.unit)||0), 0);
+  const disc = Number(document.getElementById('quoteDiscAmt').value)||0;
+  const total = Math.max(0, subtotal - disc);
+  document.getElementById('quoteSubtotal').textContent = peso2(subtotal);
+  document.getElementById('quoteTotal').textContent = peso2(total);
+  // keep the amount column in sync without a full re-render (cheap targeted update)
+  document.querySelectorAll('#quoteLines tr').forEach((tr, i) => {
+    const cell = tr.children[3]; const l = _quoteLines[i];
+    if (cell && l) cell.textContent = peso2(l.qty*l.unit);
+  });
+}
+
+async function quoteSave() {
+  if (!_quoteLines.length) { showToast('Add at least one line item', 'red'); return; }
+  const status = document.getElementById('quoteSaveStatus');
+  status.textContent = 'Saving…';
+  try {
+    const p = new URLSearchParams({ action:'cfQuoteSave', token:sessionToken, ref:_quoteRef,
+      lines: JSON.stringify(_quoteLines.map(l=>({desc:l.desc,qty:l.qty,unit:l.unit}))),
+      notes: document.getElementById('quoteNotes').value,
+      terms: document.getElementById('quoteTerms').value,
+      validityDays: document.getElementById('quoteValidity').value,
+      discountLabel: document.getElementById('quoteDiscLabel').value,
+      discountAmount: document.getElementById('quoteDiscAmt').value,
+      by: (typeof _userName!=='undefined' && _userName) || 'admin', ts:Date.now() });
+    const res = await fetch(SCRIPT_URL + '?' + p.toString());
+    const j = await res.json();
+    if (!j.success) throw new Error(j.error || 'Save failed');
+    status.textContent = '✓ Saved just now.';
+    showToast('✓ Quotation saved', 'gold');
+    return j;
+  } catch(e) { status.textContent = ''; showToast('Error: ' + e.message, 'red'); return null; }
+}
+
+async function quoteSaveAndPrint() {
+  const j = await quoteSave();
+  if (j) quotePrint();
+}
+
+function quotePrint() {
+  const b = (_quoteData||{}).brand || {};
+  const logo = b.logoUrl ? `<img src="${b.logoUrl}" style="max-height:70px;max-width:140px;object-fit:contain;"/>` : '';
+  const discLabel = document.getElementById('quoteDiscLabel').value;
+  const discAmt = Number(document.getElementById('quoteDiscAmt').value)||0;
+  const validity = document.getElementById('quoteValidity').value || 30;
+  const notes = document.getElementById('quoteNotes').value;
+  const terms = document.getElementById('quoteTerms').value;
+  const subtotal = _quoteLines.reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.unit)||0),0);
+  const total = Math.max(0, subtotal - discAmt);
+  const today = new Date().toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
+  const d = _quoteData || {};
+  const rows = _quoteLines.map(l => `<tr><td>${escapeHtml(l.desc)}</td><td style="text-align:center;">${l.qty}</td>
+    <td style="text-align:right;">${l.unit?peso2(l.unit):'—'}</td><td style="text-align:right;">${l.unit?peso2(l.qty*l.unit):'included'}</td></tr>`).join('');
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Quotation — ${escapeHtml(_quoteRef)}</title>
+  <style>body{font-family:Georgia,serif;color:#222;max-width:760px;margin:1.5rem auto;padding:0 1rem;}
+  h1{font-size:1.3rem;margin:0.2rem 0;} h2{font-size:1.05rem;border-bottom:2px solid #C9A84C;padding-bottom:0.2rem;margin-top:1.3rem;}
+  table{width:100%;border-collapse:collapse;margin:0.6rem 0;} th,td{border:1px solid #ccc;padding:0.45rem 0.6rem;font-size:0.85rem;}
+  th{background:#f6efdf;text-align:left;} .meta{font-size:0.85rem;color:#555;} .tot{font-weight:bold;background:#faf5e6;}
+  .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:3px double #C9A84C;padding-bottom:0.6rem;}
+  .noprint{margin:1.2rem 0;} @media print{.noprint{display:none;}}</style></head><body>
+  <div class="hdr"><div><h1>${escapeHtml(b.name||'Appetina Catering')}</h1>
+  <div class="meta">${escapeHtml(b.tagline||'')}<br>${escapeHtml(b.address||'')} · ${escapeHtml(b.phone||'')} · ${escapeHtml(b.email||'')}</div></div>${logo}</div>
+  <h2>Quotation</h2>
+  <div class="meta">Ref <b>${escapeHtml(_quoteRef)}</b> · ${escapeHtml(d.client||'')} ${d.eventDate?'· '+escapeHtml(d.eventDate):''} ${d.venue?'· '+escapeHtml(d.venue):''} ${d.pax?'· '+d.pax+' pax':''}<br>
+  Date issued: ${today} · Valid for ${escapeHtml(String(validity))} days</div>
+  <table><thead><tr><th>Description</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Amount</th></tr></thead>
+  <tbody>${rows}
+  <tr><td colspan="3" style="text-align:right;">Subtotal</td><td style="text-align:right;">${peso2(subtotal)}</td></tr>
+  ${discAmt>0?`<tr><td colspan="3" style="text-align:right;">${escapeHtml(discLabel||'Discount')}</td><td style="text-align:right;">-${peso2(discAmt)}</td></tr>`:''}
+  <tr class="tot"><td colspan="3" style="text-align:right;">TOTAL</td><td style="text-align:right;">${peso2(total)}</td></tr></tbody></table>
+  ${notes?`<h2>Notes</h2><p>${escapeHtml(notes).replace(/\n/g,'<br>')}</p>`:''}
+  ${terms?`<h2>Terms &amp; Conditions</h2><p style="font-size:0.82rem;">${escapeHtml(terms).replace(/\n/g,'<br>')}</p>`:''}
+  <div class="noprint"><button onclick="window.print()" style="padding:0.6rem 1.4rem;font-size:1rem;">🖨 Print / Save PDF</button></div>
+  </body></html>`);
+  w.document.close();
 }
 
 </script>
