@@ -8985,39 +8985,118 @@ async function quoteSaveAndPrint() {
 
 function quotePrint() {
   const b = (_quoteData||{}).brand || {};
-  const logo = b.logoUrl ? `<img src="${b.logoUrl}" style="max-height:70px;max-width:140px;object-fit:contain;"/>` : '';
+  const brandName = b.name || 'Appetina Catering & Food Services';
+  const logo = b.logoUrl ? `<img src="${b.logoUrl}" alt="${escapeHtml(brandName)}" class="logo"/>` : '';
   const discLabel = document.getElementById('quoteDiscLabel').value;
   const discAmt = Number(document.getElementById('quoteDiscAmt').value)||0;
-  const validity = document.getElementById('quoteValidity').value || 30;
+  const validity = Number(document.getElementById('quoteValidity').value) || 30;
   const notes = document.getElementById('quoteNotes').value;
   const terms = document.getElementById('quoteTerms').value;
   const subtotal = _quoteLines.reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.unit)||0),0);
   const total = Math.max(0, subtotal - discAmt);
-  const today = new Date().toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
+  const issued = new Date();
+  const validUntil = new Date(issued.getTime() + validity*864e5);
+  const fmtDate = dt => dt.toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
   const d = _quoteData || {};
-  const rows = _quoteLines.map(l => `<tr><td>${escapeHtml(l.desc)}</td><td style="text-align:center;">${l.qty}</td>
-    <td style="text-align:right;">${l.unit?peso2(l.unit):'—'}</td><td style="text-align:right;">${l.unit?peso2(l.qty*l.unit):'included'}</td></tr>`).join('');
+  const rows = _quoteLines.map(l => `<tr><td>${escapeHtml(l.desc)}</td><td class="ctr">${l.qty}</td>
+    <td class="rgt">${l.unit?peso2(l.unit):'—'}</td><td class="rgt">${l.unit?peso2(l.qty*l.unit):'included'}</td></tr>`).join('');
+  const contactBits = [b.address, b.phone, b.email, b.facebook].filter(Boolean).map(escapeHtml).join('  ·  ');
+
   const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html><head><title>Quotation — ${escapeHtml(_quoteRef)}</title>
-  <style>body{font-family:Georgia,serif;color:#222;max-width:760px;margin:1.5rem auto;padding:0 1rem;}
-  h1{font-size:1.3rem;margin:0.2rem 0;} h2{font-size:1.05rem;border-bottom:2px solid #C9A84C;padding-bottom:0.2rem;margin-top:1.3rem;}
-  table{width:100%;border-collapse:collapse;margin:0.6rem 0;} th,td{border:1px solid #ccc;padding:0.45rem 0.6rem;font-size:0.85rem;}
-  th{background:#f6efdf;text-align:left;} .meta{font-size:0.85rem;color:#555;} .tot{font-weight:bold;background:#faf5e6;}
-  .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:3px double #C9A84C;padding-bottom:0.6rem;}
-  .noprint{margin:1.2rem 0;} @media print{.noprint{display:none;}}</style></head><body>
-  <div class="hdr"><div><h1>${escapeHtml(b.name||'Appetina Catering')}</h1>
-  <div class="meta">${escapeHtml(b.tagline||'')}<br>${escapeHtml(b.address||'')} · ${escapeHtml(b.phone||'')} · ${escapeHtml(b.email||'')}</div></div>${logo}</div>
-  <h2>Quotation</h2>
-  <div class="meta">Ref <b>${escapeHtml(_quoteRef)}</b> · ${escapeHtml(d.client||'')} ${d.eventDate?'· '+escapeHtml(d.eventDate):''} ${d.venue?'· '+escapeHtml(d.venue):''} ${d.pax?'· '+d.pax+' pax':''}<br>
-  Date issued: ${today} · Valid for ${escapeHtml(String(validity))} days</div>
-  <table><thead><tr><th>Description</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Amount</th></tr></thead>
-  <tbody>${rows}
-  <tr><td colspan="3" style="text-align:right;">Subtotal</td><td style="text-align:right;">${peso2(subtotal)}</td></tr>
-  ${discAmt>0?`<tr><td colspan="3" style="text-align:right;">${escapeHtml(discLabel||'Discount')}</td><td style="text-align:right;">-${peso2(discAmt)}</td></tr>`:''}
-  <tr class="tot"><td colspan="3" style="text-align:right;">TOTAL</td><td style="text-align:right;">${peso2(total)}</td></tr></tbody></table>
-  ${notes?`<h2>Notes</h2><p>${escapeHtml(notes).replace(/\n/g,'<br>')}</p>`:''}
-  ${terms?`<h2>Terms &amp; Conditions</h2><p style="font-size:0.82rem;">${escapeHtml(terms).replace(/\n/g,'<br>')}</p>`:''}
-  <div class="noprint"><button onclick="window.print()" style="padding:0.6rem 1.4rem;font-size:1rem;">🖨 Print / Save PDF</button></div>
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Quotation — ${escapeHtml(_quoteRef)}</title>
+  <style>
+    @page { size: A4; margin: 16mm 15mm 18mm; }
+    * { box-sizing: border-box; }
+    body{ font-family: 'Georgia', 'Times New Roman', serif; color:#2a2118; margin:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .sheet{ max-width: 190mm; margin: 0 auto; padding: 6mm 2mm; }
+    .hdr{ display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; border-bottom:3px double #C9A84C; padding-bottom:0.7rem; margin-bottom:0.9rem; }
+    .logo{ max-height:64px; max-width:180px; object-fit:contain; }
+    .brandname{ font-size:1.5rem; font-weight:700; letter-spacing:0.02em; color:#1a1209; margin:0 0 0.15rem; }
+    .brandtag{ font-size:0.82rem; color:#8a7050; font-style:italic; margin:0 0 0.3rem; }
+    .contact{ font-size:0.72rem; color:#6b5a44; }
+    .doctitle{ text-align:right; }
+    .doctitle .lbl{ font-size:1.15rem; letter-spacing:0.12em; color:#C9A84C; font-weight:700; text-transform:uppercase; }
+    .doctitle .ref{ font-size:0.82rem; color:#555; margin-top:0.15rem; }
+    .infogrid{ display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 1.5rem; font-size:0.84rem; margin-bottom:1rem; background:#faf7ef; border:1px solid #e7dcc4; border-radius:6px; padding:0.7rem 1rem; }
+    .infogrid .k{ color:#8a7050; }
+    .infogrid .v{ font-weight:600; }
+    h2{ font-size:0.95rem; text-transform:uppercase; letter-spacing:0.06em; border-bottom:1.5px solid #C9A84C; padding-bottom:0.25rem; margin:1.3rem 0 0.5rem; color:#1a1209; }
+    table{ width:100%; border-collapse:collapse; margin:0.4rem 0; font-size:0.84rem; }
+    th,td{ border:1px solid #d8cdb4; padding:0.5rem 0.65rem; }
+    th{ background:#f6efdf; text-align:left; font-size:0.76rem; text-transform:uppercase; letter-spacing:0.03em; color:#5c4b34; }
+    .ctr{ text-align:center; } .rgt{ text-align:right; }
+    tfoot td{ border:none; padding:0.35rem 0.65rem; }
+    .subtotal-row td{ border-top:1.5px solid #d8cdb4; }
+    .total-row td{ font-weight:800; font-size:1.05rem; color:#1a1209; background:#faf5e6; border-top:2px solid #C9A84C; }
+    p{ font-size:0.84rem; line-height:1.55; }
+    .terms{ font-size:0.76rem; color:#4a3f2f; line-height:1.6; }
+    .accept{ margin-top:1.6rem; border:1.5px solid #C9A84C; border-radius:8px; padding:1rem 1.2rem; background:#fdfbf5; page-break-inside:avoid; }
+    .accept h2{ margin-top:0; }
+    .accept p{ margin:0.2rem 0 0.8rem; font-size:0.8rem; color:#4a3f2f; }
+    .sigrow{ display:grid; grid-template-columns:1fr 1fr; gap:2.2rem; margin-top:1.6rem; }
+    .sigline{ border-top:1px solid #333; padding-top:0.35rem; font-size:0.76rem; color:#333; }
+    .sigline .role{ color:#8a7050; font-size:0.7rem; }
+    .sigmeta{ display:flex; justify-content:space-between; font-size:0.7rem; color:#8a7050; margin-top:0.5rem; }
+    .footer{ margin-top:1.8rem; text-align:center; font-size:0.68rem; color:#9b8a6f; border-top:1px solid #e7dcc4; padding-top:0.5rem; }
+    .noprint{ margin:1.4rem 0; text-align:center; }
+    .noprint button{ padding:0.65rem 1.6rem; font-size:0.95rem; background:#C9A84C; color:#1a1209; border:none; border-radius:8px; font-weight:700; cursor:pointer; }
+    @media print{ .noprint{ display:none; } body{ margin:0; } }
+  </style></head><body>
+  <div class="sheet">
+    <div class="hdr">
+      <div>
+        ${logo}
+        <div class="brandname">${escapeHtml(brandName)}</div>
+        ${b.tagline ? `<div class="brandtag">${escapeHtml(b.tagline)}</div>` : ''}
+        <div class="contact">${contactBits}</div>
+      </div>
+      <div class="doctitle">
+        <div class="lbl">Quotation</div>
+        <div class="ref">No. ${escapeHtml(_quoteRef)}</div>
+      </div>
+    </div>
+
+    <div class="infogrid">
+      <div><span class="k">Prepared for:</span> <span class="v">${escapeHtml(d.client||'')}</span></div>
+      <div><span class="k">Date issued:</span> <span class="v">${fmtDate(issued)}</span></div>
+      ${d.eventDate ? `<div><span class="k">Event date:</span> <span class="v">${escapeHtml(d.eventDate)}</span></div>` : ''}
+      <div><span class="k">Valid until:</span> <span class="v">${fmtDate(validUntil)}</span></div>
+      ${d.venue ? `<div><span class="k">Venue:</span> <span class="v">${escapeHtml(d.venue)}</span></div>` : ''}
+      ${d.pax ? `<div><span class="k">Guests:</span> <span class="v">${d.pax} pax</span></div>` : ''}
+    </div>
+
+    <h2>Itemized Quotation</h2>
+    <table>
+      <thead><tr><th>Description</th><th class="ctr">Qty</th><th class="rgt">Unit Price</th><th class="rgt">Amount</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr class="subtotal-row"><td colspan="3" class="rgt">Subtotal</td><td class="rgt">${peso2(subtotal)}</td></tr>
+        ${discAmt>0?`<tr><td colspan="3" class="rgt">${escapeHtml(discLabel||'Discount')}</td><td class="rgt">-${peso2(discAmt)}</td></tr>`:''}
+        <tr class="total-row"><td colspan="3" class="rgt">TOTAL</td><td class="rgt">${peso2(total)}</td></tr>
+      </tfoot>
+    </table>
+
+    ${notes?`<h2>Notes</h2><p>${escapeHtml(notes).replace(/\n/g,'<br>')}</p>`:''}
+    ${terms?`<h2>Terms &amp; Conditions</h2><p class="terms">${escapeHtml(terms).replace(/\n/g,'<br>')}</p>`:''}
+
+    <div class="accept">
+      <h2>Acknowledgement &amp; Acceptance</h2>
+      <p>By signing below, the client confirms review and acceptance of this quotation — the described package, pricing, and terms &amp; conditions stated above — as the basis for proceeding with booking confirmation.</p>
+      <div class="sigrow">
+        <div>
+          <div class="sigline">Client Signature over Printed Name<div class="role">${escapeHtml(d.client||'Client')}</div></div>
+          <div class="sigmeta"><span>Date: _______________</span><span>Contact: ${escapeHtml(d.contact||d.email||'')}</span></div>
+        </div>
+        <div>
+          <div class="sigline">For ${escapeHtml(brandName)}<div class="role">Authorized Representative</div></div>
+          <div class="sigmeta"><span>Date: _______________</span><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">${escapeHtml(brandName)} · ${contactBits || 'Thank you for considering us for your event.'}</div>
+    <div class="noprint"><button onclick="window.print()">🖨 Print / Save as PDF</button></div>
+  </div>
   </body></html>`);
   w.document.close();
 }
