@@ -8782,13 +8782,7 @@ async function wfOpenDoc(type) {
     const d = await wfGetDocData(_wfEventRef);
     const bk = d.booking, c = d.costing||{};
     if (type === 'kitchen') { currentRef = _wfEventRef; openKitchenSheet(); return; }
-    if (type === 'quotation') return docFrame('Quotation', d, `
-      <table><tr><th>Package</th><td>${escapeHtml(bk.pkg)}</td></tr><tr><th>Guests</th><td>${bk.pax} pax</td></tr>
-      <tr><th>Motif</th><td>${escapeHtml(bk.motif)}</td></tr></table>
-      <h2>Proposed Menu</h2><table>${menuRows(bk.menu)}</table>
-      <h2>Investment</h2><table><tr><th>Total Package</th><td>${peso(bk.total)}</td></tr>
-      <tr><th>Reservation (downpayment)</th><td>${peso(bk.down)}</td></tr><tr class="tot"><th>Balance on event day</th><td>${peso(bk.balance)}</td></tr></table>
-      <p class="meta">Quotation valid for 30 days. Prices may adjust with market conditions before confirmation.</p>`);
+    if (type === 'quotation') { openQuoteEditor(_wfEventRef); return; }
     if (type === 'agreement') return docFrame('Catering Service Agreement', d, `
       <p>This agreement is between <b>${escapeHtml((d.brand||{}).name||'the Caterer')}</b> ("Caterer") and <b>${escapeHtml(bk.client)}</b> ("Client") for catering services on <b>${escapeHtml(bk.date)}</b> at <b>${escapeHtml(bk.venue)}</b> for <b>${bk.pax} guests</b>.</p>
       <table><tr><th>Package</th><td>${escapeHtml(bk.pkg)} — ${peso(bk.total)}</td></tr>
@@ -9091,21 +9085,21 @@ function quotePrint() {
     <h2>Payment Methods</h2>
     <div class="paycards">
       <div class="paycard">
-        <div class="pchead" style="background:linear-gradient(135deg,#007DFF,#00C0FF);"><span>📱 GCash</span><span>{GCASH_NUM}</span></div>
+        <div class="pchead" style="background:linear-gradient(135deg,#007DFF,#00C0FF);"><span>📱 GCash</span><span>${GCASH_NUM}</span></div>
         <div class="pcbody">
           <img src="${GCASH_QR_IMG}" alt="GCash QR"/>
           <div class="pcamt">${peso2(total)}</div>
           <div style="font-size:0.62rem;color:#8a7050;">enter this amount manually</div>
-          <div class="pcdetail"><b>Steps:</b> Open GCash → Pay QR → scan → enter the amount above → message "Ref ${escapeHtml(_quoteRef)}" → Send.<br><b>Name:</b> {GCASH_NAME}</div>
+          <div class="pcdetail"><b>Steps:</b> Open GCash → Pay QR → scan → enter the amount above → message "Ref ${escapeHtml(_quoteRef)}" → Send.<br><b>Name:</b> ${GCASH_NAME}</div>
         </div>
       </div>
       <div class="paycard">
-        <div class="pchead" style="background:linear-gradient(135deg,#CC0000,#FF4444);"><span>🏦 BPI</span><span>{BPI_ACC}</span></div>
+        <div class="pchead" style="background:linear-gradient(135deg,#CC0000,#FF4444);"><span>🏦 BPI</span><span>${BPI_ACC}</span></div>
         <div class="pcbody">
           <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&ecc=M&color=CC0000&bgcolor=ffffff&qzone=1&data=${encodeURIComponent('BPI BANK TRANSFER\\nAccount Name: '+BPI_NAME+'\\nAccount No: '+BPI_ACC+'\\nReference: '+_quoteRef)}" alt="BPI QR"/>
           <div class="pcamt">${peso2(total)}</div>
           <div style="font-size:0.62rem;color:#8a7050;">enter this amount manually</div>
-          <div class="pcdetail"><b>Account Name:</b> {BPI_NAME}<br><b>Account No:</b> {BPI_ACC}<br><b>Reference:</b> ${escapeHtml(_quoteRef)}</div>
+          <div class="pcdetail"><b>Account Name:</b> ${BPI_NAME}<br><b>Account No:</b> ${BPI_ACC}<br><b>Reference:</b> ${escapeHtml(_quoteRef)}</div>
         </div>
       </div>
     </div>
