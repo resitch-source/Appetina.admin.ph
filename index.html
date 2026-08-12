@@ -2368,11 +2368,12 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
 
     <div style="overflow-x:auto;">
       <table style="width:100%;min-width:480px;">
-        <thead><tr><th style="width:44%;">Description</th><th style="width:15%;">Qty</th><th style="width:20%;">Unit Price</th><th style="width:15%;">Amount</th><th></th></tr></thead>
+        <thead><tr><th style="width:36%;">Description</th><th style="width:12%;">Qty</th><th style="width:14%;">Unit</th><th style="width:16%;">Unit Price</th><th style="width:14%;">Amount</th><th></th></tr></thead>
         <tbody id="quoteLines"></tbody>
       </table>
     </div>
-    <button class="refresh-btn" style="font-size:0.76rem;margin-top:0.4rem;" onclick="quoteAddLine()">+ Add line item</button>
+    <button id="quoteAutofillBtn" class="refresh-btn" style="font-size:0.76rem;margin-top:0.4rem;background:var(--gold);color:#1a1209;border-color:var(--gold);" onclick="quoteAutofill()">⤓ Auto-fill package &amp; inclusions</button>
+    <button class="refresh-btn" style="font-size:0.76rem;margin-top:0.4rem;" onclick="quoteAddLine()">+ Add item</button>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:1rem;">
       <div><label class="entry-label">Discount label</label><input class="entry-input" id="quoteDiscLabel" placeholder="e.g. Loyalty discount"/></div>
@@ -8889,7 +8890,7 @@ async function wfEmbedRequirements(box, ref) {
 //  QUOTATION EDITOR — editable line items, persisted, printable
 //  Works for a booking (BK-...) or a POS order (POS-...).
 // =============================================================
-let _quoteRef = '', _quoteLines = [], _quoteData = null;
+let _quoteRef = '', _quoteGroups = [], _quoteData = null;
 
 function peso2(n){ return '₱' + Math.round(Number(n||0)).toLocaleString('en-PH'); }
 
@@ -8906,7 +8907,10 @@ async function openQuoteEditor(ref) {
     const j = await res.json();
     if (!j.success) throw new Error(j.error || 'Failed to load');
     _quoteData = j;
-    _quoteLines = (j.lines || []).map(l => ({ desc:l.desc||'', qty:Number(l.qty)||0, unit:Number(l.unit)||0 }));
+    _quoteGroups = (j.groups || []).map(g => ({
+      desc: g.desc||'', qty: Number(g.qty)||0, unitLabel: g.unitLabel||'', unitPrice: Number(g.unitPrice)||0,
+      subItems: Array.isArray(g.subItems) ? g.subItems.slice() : []
+    }));
     document.getElementById('quoteMeta').innerHTML =
       `${escapeHtml(j.client)} ${j.eventDate ? '· ' + escapeHtml(j.eventDate) : ''} ${j.venue ? '· ' + escapeHtml(j.venue) : ''} ${j.pax ? '· ' + j.pax + ' pax' : ''}
        ${j.isSaved ? '<span style="color:#66bb6a;">· saved draft</span>' : '<span style="color:var(--muted);">· auto-generated — edit and save</span>'}`;
@@ -8922,41 +8926,104 @@ async function openQuoteEditor(ref) {
   }
 }
 
+// Each group = one priced main row (e.g. the package, billed per pax) plus
+// any number of un-priced descriptive sub-rows (inclusions / menu picks).
 function quoteRenderLines() {
-  document.getElementById('quoteLines').innerHTML = _quoteLines.map((l, i) => `
+  const rowsHtml = _quoteGroups.map((g, gi) => {
+    const mainRow = `
+    <tr style="background:rgba(201,168,76,0.06);">
+      <td><input class="entry-input" style="padding:0.35rem 0.5rem;font-size:0.8rem;font-weight:700;" value="${escapeHtml(g.desc)}" placeholder="Package / item name" oninput="_quoteGroups[${gi}].desc=this.value"/></td>
+      <td><input class="entry-input" type="number" min="0" step="1" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${g.qty}" oninput="_quoteGroups[${gi}].qty=Number(this.value)||0;quoteRecalc()"/></td>
+      <td><input class="entry-input" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${escapeHtml(g.unitLabel)}" placeholder="pax" oninput="_quoteGroups[${gi}].unitLabel=this.value"/></td>
+      <td><input class="entry-input" type="number" min="0" step="0.01" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${g.unitPrice}" oninput="_quoteGroups[${gi}].unitPrice=Number(this.value)||0;quoteRecalc()"/></td>
+      <td style="text-align:right;font-size:0.82rem;font-weight:700;padding:0 0.4rem;" class="qamt">${peso2(g.qty*g.unitPrice)}</td>
+      <td><button aria-label="Remove item" class="refresh-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;" onclick="_quoteGroups.splice(${gi},1);quoteRenderLines();quoteRecalc()">✕</button></td>
+    </tr>`;
+    const subRows = g.subItems.map((s, si) => `
     <tr>
-      <td><input class="entry-input" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${escapeHtml(l.desc)}" oninput="_quoteLines[${i}].desc=this.value"/></td>
-      <td><input class="entry-input" type="number" min="0" step="0.01" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${l.qty}" oninput="_quoteLines[${i}].qty=Number(this.value)||0;quoteRecalc()"/></td>
-      <td><input class="entry-input" type="number" min="0" step="0.01" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${l.unit}" oninput="_quoteLines[${i}].unit=Number(this.value)||0;quoteRecalc()"/></td>
-      <td style="text-align:right;font-size:0.82rem;padding:0 0.4rem;">${peso2(l.qty*l.unit)}</td>
-      <td><button aria-label="Remove line" class="refresh-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;" onclick="_quoteLines.splice(${i},1);quoteRenderLines();quoteRecalc()">✕</button></td>
-    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:0.8rem;">No line items — add one below.</td></tr>';
+      <td style="padding-left:1.6rem;" colspan="4"><span style="color:var(--muted);">— </span><input class="entry-input" style="padding:0.3rem 0.5rem;font-size:0.76rem;background:transparent;border-color:transparent;" value="${escapeHtml(s)}" placeholder="Inclusion / menu item" oninput="_quoteGroups[${gi}].subItems[${si}]=this.value"/></td>
+      <td></td>
+      <td><button aria-label="Remove inclusion" class="refresh-btn" style="padding:0.2rem 0.45rem;font-size:0.65rem;" onclick="_quoteGroups[${gi}].subItems.splice(${si},1);quoteRenderLines()">✕</button></td>
+    </tr>`).join('');
+    const addSubRow = `
+    <tr>
+      <td style="padding-left:1.6rem;" colspan="6">
+        <button class="refresh-btn" style="padding:0.2rem 0.5rem;font-size:0.68rem;" onclick="_quoteGroups[${gi}].subItems.push('');quoteRenderLines()">+ inclusion / menu item</button>
+      </td>
+    </tr>`;
+    return mainRow + subRows + addSubRow;
+  }).join('');
+  document.getElementById('quoteLines').innerHTML = rowsHtml ||
+    '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:0.8rem;">No items — add one below.</td></tr>';
 }
+
 function quoteAddLine() {
-  _quoteLines.push({ desc:'', qty:1, unit:0 });
+  _quoteGroups.push({ desc:'', qty:1, unitLabel:'pax', unitPrice:0, subItems:[] });
   quoteRenderLines();
   quoteRecalc();
 }
+
+// Pulls the ordered package + its current inclusions straight from the live
+// booking/order, regardless of what's already saved or in the editor. Useful
+// when a quote was saved before inclusions existed, or was manually cleared.
+async function quoteAutofill() {
+  if (!_quoteRef) { showToast('Quotation is still loading — try again in a moment', 'red'); return; }
+  if (!sessionToken) { showToast('Your session has expired — please sign out and sign in again', 'red'); return; }
+  const btn = document.getElementById('quoteAutofillBtn');
+  const origLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Auto-filling…'; }
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=cfQuoteAutofill&token=' + encodeURIComponent(sessionToken) + '&ref=' + encodeURIComponent(_quoteRef) + '&ts=' + Date.now());
+    let j;
+    try { j = await res.json(); }
+    catch(parseErr) { throw new Error('Server did not return valid data — is the Apps Script redeployed with the latest version?'); }
+    if (!j || typeof j.success === 'undefined') throw new Error('Unexpected response from the server — check the Apps Script deployment.');
+    if (!j.success) {
+      if (j.authRequired || /unauthor/i.test(j.error||'')) throw new Error('Your session has expired — please sign out and sign in again.');
+      throw new Error(j.error || 'Auto-fill failed');
+    }
+    const fresh = (j.groups || []).map(g => ({
+      desc: g.desc||'', qty: Number(g.qty)||0, unitLabel: g.unitLabel||'', unitPrice: Number(g.unitPrice)||0,
+      subItems: Array.isArray(g.subItems) ? g.subItems.slice() : []
+    }));
+    if (!fresh.length) { showToast('Nothing to auto-fill — this booking/order has no package or line items yet', 'red'); return; }
+    if (!_quoteGroups.length) {
+      // Empty editor: just drop it straight in.
+      _quoteGroups = fresh;
+    } else {
+      // Already has items (custom or a stale saved draft): add alongside,
+      // so nothing the admin already entered gets silently discarded.
+      _quoteGroups = _quoteGroups.concat(fresh);
+    }
+    quoteRenderLines();
+    quoteRecalc();
+    showToast('✓ Package & inclusions auto-filled', 'gold');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = origLabel; } }
+}
+
 function quoteRecalc() {
-  const subtotal = _quoteLines.reduce((s,l) => s + (Number(l.qty)||0)*(Number(l.unit)||0), 0);
+  const subtotal = _quoteGroups.reduce((s,g) => s + (Number(g.qty)||0)*(Number(g.unitPrice)||0), 0);
   const disc = Number(document.getElementById('quoteDiscAmt').value)||0;
   const total = Math.max(0, subtotal - disc);
   document.getElementById('quoteSubtotal').textContent = peso2(subtotal);
   document.getElementById('quoteTotal').textContent = peso2(total);
-  // keep the amount column in sync without a full re-render (cheap targeted update)
-  document.querySelectorAll('#quoteLines tr').forEach((tr, i) => {
-    const cell = tr.children[3]; const l = _quoteLines[i];
-    if (cell && l) cell.textContent = peso2(l.qty*l.unit);
+  // keep main-row amount cells in sync without a full re-render
+  document.querySelectorAll('#quoteLines .qamt').forEach((cell, i) => {
+    const g = _quoteGroups[i]; if (g) cell.textContent = peso2(g.qty*g.unitPrice);
   });
 }
 
 async function quoteSave() {
-  if (!_quoteLines.length) { showToast('Add at least one line item', 'red'); return; }
+  if (!_quoteGroups.length) { showToast('Add at least one item', 'red'); return; }
   const status = document.getElementById('quoteSaveStatus');
   status.textContent = 'Saving…';
   try {
     const p = new URLSearchParams({ action:'cfQuoteSave', token:sessionToken, ref:_quoteRef,
-      lines: JSON.stringify(_quoteLines.map(l=>({desc:l.desc,qty:l.qty,unit:l.unit}))),
+      lines: JSON.stringify(_quoteGroups.map(g=>({
+        desc:g.desc, qty:g.qty, unitLabel:g.unitLabel, unitPrice:g.unitPrice,
+        subItems:(g.subItems||[]).filter(s=>String(s||'').trim())
+      }))),
       notes: document.getElementById('quoteNotes').value,
       terms: document.getElementById('quoteTerms').value,
       validityDays: document.getElementById('quoteValidity').value,
@@ -8990,14 +9057,19 @@ function quotePrint() {
   const validity = Number(document.getElementById('quoteValidity').value) || 30;
   const notes = document.getElementById('quoteNotes').value;
   const terms = document.getElementById('quoteTerms').value;
-  const subtotal = _quoteLines.reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.unit)||0),0);
+  const subtotal = _quoteGroups.reduce((s,g)=>s+(Number(g.qty)||0)*(Number(g.unitPrice)||0),0);
   const total = Math.max(0, subtotal - discAmt);
   const issued = new Date();
   const validUntil = new Date(issued.getTime() + validity*864e5);
   const fmtDate = dt => dt.toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
   const d = _quoteData || {};
-  const rows = _quoteLines.map(l => `<tr><td>${escapeHtml(l.desc)}</td><td class="ctr">${l.qty}</td>
-    <td class="rgt">${l.unit?peso2(l.unit):'—'}</td><td class="rgt">${l.unit?peso2(l.qty*l.unit):'included'}</td></tr>`).join('');
+  const rows = _quoteGroups.map(g => {
+    const mainRow = `<tr><td>${escapeHtml(g.desc)}</td><td class="ctr">${g.qty}</td><td class="ctr">${escapeHtml(g.unitLabel||'—')}</td>
+      <td class="rgt">${g.unitPrice?peso2(g.unitPrice):'—'}</td><td class="rgt">${peso2(g.qty*g.unitPrice)}</td></tr>`;
+    const subRows = (g.subItems||[]).filter(s=>String(s||'').trim()).map(s =>
+      `<tr class="subrow"><td colspan="5">— ${escapeHtml(s)}</td></tr>`).join('');
+    return mainRow + subRows;
+  }).join('');
   const contactBits = [b.address, b.phone, b.email, b.facebook].filter(Boolean).map(escapeHtml).join('  ·  ');
 
   const w = window.open('', '_blank');
@@ -9023,6 +9095,7 @@ function quotePrint() {
     th,td{ border:1px solid #d8cdb4; padding:0.5rem 0.65rem; }
     th{ background:#f6efdf; text-align:left; font-size:0.76rem; text-transform:uppercase; letter-spacing:0.03em; color:#5c4b34; }
     .ctr{ text-align:center; } .rgt{ text-align:right; }
+    .subrow td{ color:#6b5a44; font-size:0.78rem; font-style:italic; background:#fcfaf3; border-top:none; padding-top:0.25rem; padding-bottom:0.25rem; padding-left:1.6rem; }
     tfoot td{ border:none; padding:0.35rem 0.65rem; }
     .subtotal-row td{ border-top:1.5px solid #d8cdb4; }
     .total-row td{ font-weight:800; font-size:1.05rem; color:#1a1209; background:#faf5e6; border-top:2px solid #C9A84C; }
@@ -9073,12 +9146,12 @@ function quotePrint() {
 
     <h2>Itemized Quotation</h2>
     <table>
-      <thead><tr><th>Description</th><th class="ctr">Qty</th><th class="rgt">Unit Price</th><th class="rgt">Amount</th></tr></thead>
+      <thead><tr><th>Description</th><th class="ctr">Qty</th><th class="ctr">Unit</th><th class="rgt">Unit Price</th><th class="rgt">Amount</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot>
-        <tr class="subtotal-row"><td colspan="3" class="rgt">Subtotal</td><td class="rgt">${peso2(subtotal)}</td></tr>
-        ${discAmt>0?`<tr><td colspan="3" class="rgt">${escapeHtml(discLabel||'Discount')}</td><td class="rgt">-${peso2(discAmt)}</td></tr>`:''}
-        <tr class="total-row"><td colspan="3" class="rgt">TOTAL</td><td class="rgt">${peso2(total)}</td></tr>
+        <tr class="subtotal-row"><td colspan="4" class="rgt">Subtotal</td><td class="rgt">${peso2(subtotal)}</td></tr>
+        ${discAmt>0?`<tr><td colspan="4" class="rgt">${escapeHtml(discLabel||'Discount')}</td><td class="rgt">-${peso2(discAmt)}</td></tr>`:''}
+        <tr class="total-row"><td colspan="4" class="rgt">TOTAL</td><td class="rgt">${peso2(total)}</td></tr>
       </tfoot>
     </table>
 
