@@ -8891,12 +8891,26 @@ async function wfEmbedRequirements(box, ref) {
 //  Works for a booking (BK-...) or a POS order (POS-...).
 // =============================================================
 let _quoteRef = '', _quoteGroups = [], _quoteData = null;
+let _quoteConfig = null; // { packages:[{label,price,pax}], menus:{beef:[...],...} }
+
+// Load the live package list + menu selections once, for the pickers below.
+async function quoteLoadConfig() {
+  if (_quoteConfig) return _quoteConfig;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=config&ts=' + Date.now());
+    const j = await res.json();
+    if (j && j.success) _quoteConfig = { packages: j.packages || [], menus: j.menus || {} };
+    else _quoteConfig = { packages: [], menus: {} };
+  } catch(e) { _quoteConfig = { packages: [], menus: {} }; }
+  return _quoteConfig;
+}
 
 function peso2(n){ return '₱' + Math.round(Number(n||0)).toLocaleString('en-PH'); }
 
 async function openQuoteEditor(ref) {
   if (!ref) { showToast('No reference to quote', 'red'); return; }
   _quoteRef = ref;
+  quoteLoadConfig(); // fire-and-forget; pickers use it once available
   document.getElementById('quoteTitle').textContent = '📝 Quotation — ' + ref;
   document.getElementById('quoteMeta').textContent = 'Loading…';
   document.getElementById('quoteLines').innerHTML = '';
@@ -8928,11 +8942,61 @@ async function openQuoteEditor(ref) {
 
 // Each group = one priced main row (e.g. the package, billed per pax) plus
 // any number of un-priced descriptive sub-rows (inclusions / menu picks).
+function quotePackageOptions(selectedDesc) {
+  const pkgs = (_quoteConfig && _quoteConfig.packages) || [];
+  let h = '<option value="">📦 Pick a package…</option>';
+  pkgs.forEach((p, i) => {
+    const sel = (String(p.label) === String(selectedDesc)) ? ' selected' : '';
+    h += `<option value="${i}"${sel}>${escapeHtml(p.label)} — ${p.pax? p.pax+' pax · ':''}${peso2(p.price)}</option>`;
+  });
+  return h;
+}
+function quoteMenuOptions() {
+  const menus = (_quoteConfig && _quoteConfig.menus) || {};
+  const LBL = { beef:'Beef', fish:'Fish', chicken:'Chicken', veggie:'Vegetable', pasta:'Pasta', dessert:'Dessert', drinks:'Drinks' };
+  let h = '<option value="">+ from menu…</option>';
+  Object.keys(LBL).forEach(cat => {
+    const items = menus[cat] || [];
+    if (!items.length) return;
+    h += `<optgroup label="${LBL[cat]}">`;
+    items.forEach(m => {
+      const nm = typeof m === 'string' ? m : (m.name || m.dish || '');
+      if (nm) h += `<option value="${escapeHtml(LBL[cat] + ': ' + nm)}">${escapeHtml(nm)}</option>`;
+    });
+    h += '</optgroup>';
+  });
+  return h;
+}
+
+// When a package is picked, fill this group's main row from the real package
+// definition (name, pax → qty, per-pax unit price derived from package price).
+function quotePickPackage(gi, optIdx) {
+  const pkgs = (_quoteConfig && _quoteConfig.packages) || [];
+  const p = pkgs[Number(optIdx)];
+  if (!p) return;
+  const g = _quoteGroups[gi]; if (!g) return;
+  g.desc = p.label;
+  if (p.pax > 0) { g.qty = p.pax; g.unitLabel = 'pax'; g.unitPrice = Math.round((p.price / p.pax) * 100) / 100; }
+  else { g.qty = 1; g.unitLabel = 'package'; g.unitPrice = p.price; }
+  quoteRenderLines();
+  quoteRecalc();
+}
+// Add a chosen menu dish as a sub-item (inclusion) of this group.
+function quoteAddMenuSub(gi, value) {
+  if (!value) return;
+  const g = _quoteGroups[gi]; if (!g) return;
+  if (!g.subItems.includes(value)) g.subItems.push(value);
+  quoteRenderLines();
+}
+
 function quoteRenderLines() {
   const rowsHtml = _quoteGroups.map((g, gi) => {
     const mainRow = `
     <tr style="background:rgba(201,168,76,0.06);">
-      <td><input class="entry-input" style="padding:0.35rem 0.5rem;font-size:0.8rem;font-weight:700;" value="${escapeHtml(g.desc)}" placeholder="Package / item name" oninput="_quoteGroups[${gi}].desc=this.value"/></td>
+      <td>
+        <select class="entry-input" style="padding:0.3rem 0.5rem;font-size:0.72rem;margin-bottom:0.25rem;" onchange="quotePickPackage(${gi}, this.value)">${quotePackageOptions(g.desc)}</select>
+        <input class="entry-input" style="padding:0.35rem 0.5rem;font-size:0.8rem;font-weight:700;" value="${escapeHtml(g.desc)}" placeholder="Package / item name" oninput="_quoteGroups[${gi}].desc=this.value"/>
+      </td>
       <td><input class="entry-input" type="number" min="0" step="1" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${g.qty}" oninput="_quoteGroups[${gi}].qty=Number(this.value)||0;quoteRecalc()"/></td>
       <td><input class="entry-input" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${escapeHtml(g.unitLabel)}" placeholder="pax" oninput="_quoteGroups[${gi}].unitLabel=this.value"/></td>
       <td><input class="entry-input" type="number" min="0" step="0.01" style="padding:0.35rem 0.5rem;font-size:0.8rem;" value="${g.unitPrice}" oninput="_quoteGroups[${gi}].unitPrice=Number(this.value)||0;quoteRecalc()"/></td>
@@ -8948,7 +9012,8 @@ function quoteRenderLines() {
     const addSubRow = `
     <tr>
       <td style="padding-left:1.6rem;" colspan="6">
-        <button class="refresh-btn" style="padding:0.2rem 0.5rem;font-size:0.68rem;" onclick="_quoteGroups[${gi}].subItems.push('');quoteRenderLines()">+ inclusion / menu item</button>
+        <select class="entry-input" style="padding:0.2rem 0.5rem;font-size:0.68rem;width:auto;display:inline-block;margin-right:0.4rem;" onchange="quoteAddMenuSub(${gi}, this.value); this.selectedIndex=0;">${quoteMenuOptions()}</select>
+        <button class="refresh-btn" style="padding:0.2rem 0.5rem;font-size:0.68rem;" onclick="_quoteGroups[${gi}].subItems.push('');quoteRenderLines()">+ blank inclusion</button>
       </td>
     </tr>`;
     return mainRow + subRows + addSubRow;
