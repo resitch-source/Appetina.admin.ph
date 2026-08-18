@@ -2440,7 +2440,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('quoteOverlay').style.display='none'">Close</button>
       <button class="refresh-btn" style="flex:1;background:#4fa3ff;color:#fff;border-color:#4fa3ff;" onclick="quoteSave()">💾 Save</button>
       <button class="refresh-btn" style="flex:1;background:var(--gold);color:#1a1209;border-color:var(--gold);" onclick="quoteSaveAndPrint()">🖨 Save &amp; Print</button>
-      <button class="refresh-btn" style="flex:1;background:#2e9e5b;color:#fff;border-color:#2e9e5b;" onclick="quoteSave().then(function(){ openInvoice('quotation', _quoteRef); })" title="Save, then generate an invoice from this quotation">🧾 Invoice</button>
+      <button class="refresh-btn" style="flex:1;background:#2e9e5b;color:#fff;border-color:#2e9e5b;" onclick="quoteInvoice()" title="Save, then generate an invoice from this quotation">🧾 Invoice</button>
     </div>
     <div id="quoteSaveStatus" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem;"></div>
   </div>
@@ -9303,21 +9303,69 @@ async function quoteSaveAndPrint() {
 //  UNIFIED INVOICE — print a professional invoice for a
 //  quotation, a POS sale, or an event/booking.
 // =============================================================
+// Invoice from the open quotation: open the window during the click gesture,
+// then save the latest edits and render — avoids popup blocking.
+async function quoteInvoice() {
+  const ref = _quoteRef;
+  const w = window.open('', '_blank');
+  if (w && w.document) {
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Generating invoice…</title></head>'
+      + '<body style="font-family:Segoe UI,Arial,sans-serif;color:#5d4037;text-align:center;padding:60px 20px;">'
+      + '<div style="font-size:2rem;">🧾</div><h2 style="color:#8B4513;">Generating invoice…</h2>'
+      + '<p style="color:#8a7050;">Saving your quotation first…</p></body></html>');
+  }
+  try {
+    await quoteSave();   // persist latest edits so the invoice matches
+    const d = await apFetch(SCRIPT_URL + '?action=cfInvoiceData&token=' + encodeURIComponent(sessionToken)
+      + '&source=quotation&id=' + encodeURIComponent(ref) + '&ts=' + Date.now());
+    if (!d.success) throw new Error(d.error || 'Failed to build invoice');
+    renderInvoice(d, w);
+  } catch(e) {
+    const msg = (e.meaning || e.message || 'Failed to build invoice');
+    if (w && w.document) {
+      w.document.open();
+      w.document.write('<body style="font-family:Segoe UI,Arial,sans-serif;color:#a03535;text-align:center;padding:60px 20px;">'
+        + '<div style="font-size:2rem;">⚠️</div><h2>Could not generate the invoice</h2><p style="color:#8a7050;">'
+        + String(msg).replace(/</g,'&lt;') + '</p><p><button onclick="window.close()" style="padding:10px 24px;border:none;border-radius:6px;background:#8B4513;color:#fff;cursor:pointer;">Close</button></p></body>');
+      w.document.close();
+    }
+    showToast('Invoice error: ' + msg, 'red');
+  }
+}
+
 async function openInvoice(source, id) {
   if (!id) { showToast('Nothing to invoice', 'red'); return; }
-  showToast('Generating invoice…', 'gold');
+  // Open the window SYNCHRONOUSLY (still inside the click gesture) so the
+  // browser doesn't block it as a popup after the async fetch below.
+  const w = window.open('', '_blank');
+  if (w && w.document) {
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Generating invoice…</title></head>'
+      + '<body style="font-family:Segoe UI,Arial,sans-serif;color:#5d4037;text-align:center;padding:60px 20px;">'
+      + '<div style="font-size:2rem;">🧾</div><h2 style="color:#8B4513;">Generating invoice…</h2>'
+      + '<p style="color:#8a7050;">Please wait a moment.</p></body></html>');
+  }
   try {
     const d = await apFetch(SCRIPT_URL + '?action=cfInvoiceData&token=' + encodeURIComponent(sessionToken)
       + '&source=' + encodeURIComponent(source) + '&id=' + encodeURIComponent(id) + '&ts=' + Date.now());
     if (!d.success) throw new Error(d.error || 'Failed to build invoice');
-    renderInvoice(d);
+    renderInvoice(d, w);
   } catch(e) {
-    showToast('Invoice error: ' + (e.meaning || e.message), 'red');
-    if (e.code) apShowErrorAdmin(e);
+    const msg = (e.meaning || e.message || 'Failed to build invoice');
+    if (w && w.document) {
+      w.document.open();
+      w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice error</title></head>'
+        + '<body style="font-family:Segoe UI,Arial,sans-serif;color:#a03535;text-align:center;padding:60px 20px;">'
+        + '<div style="font-size:2rem;">⚠️</div><h2>Could not generate the invoice</h2>'
+        + '<p style="color:#8a7050;white-space:pre-line;max-width:420px;margin:0 auto;">' + String(msg).replace(/</g,'&lt;') + '</p>'
+        + '<p style="margin-top:20px;"><button onclick="window.close()" style="padding:10px 24px;border:none;border-radius:6px;background:#8B4513;color:#fff;cursor:pointer;">Close</button></p></body></html>');
+      w.document.close();
+    }
+    showToast('Invoice error: ' + msg, 'red');
+    if (e.code && typeof apShowErrorAdmin === 'function') apShowErrorAdmin(e);
   }
 }
 
-function renderInvoice(d) {
+function renderInvoice(d, win) {
   const peso = n => '₱' + Math.round(Number(n||0)).toLocaleString('en-PH');
   const esc = s => String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   const b = (d.brand && typeof d.brand === 'object') ? d.brand : { name: d.brand || 'Appetina Catering & Food Services' };
@@ -9423,7 +9471,9 @@ function renderInvoice(d) {
     </div>
   </body></html>`;
 
-  const w = window.open('', '_blank');
+  const w = (win && win.document) ? win : window.open('', '_blank');
+  if (!w || !w.document) { showToast('Please allow popups to view the invoice', 'red'); return; }
+  w.document.open();
   w.document.write(html);
   w.document.close();
 }
