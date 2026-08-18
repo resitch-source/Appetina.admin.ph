@@ -2331,6 +2331,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <button class="save-status-btn" id="fullyPaidBtn" onclick="recordModalPayment(true)" style="background:#7cb342;border-color:#7cb342;">✓ Fully Paid</button>
       <button class="save-status-btn" onclick="openKitchenSheet()" style="background:#ba68c8;border-color:#ba68c8;" title="Ingredients market list & prep sheet scaled to this event's guest count">👨‍🍳 Kitchen Sheet</button>
       <button class="save-status-btn" onclick="openQuoteEditor(currentRef)" style="background:var(--gold);border-color:var(--gold);color:#1a1209;" title="Edit and print a quotation for this booking">📝 Quotation</button>
+      <button class="save-status-btn" onclick="openInvoice('event', currentRef)" style="background:#2e9e5b;border-color:#2e9e5b;color:#fff;" title="Generate a printable invoice for this event">🧾 Invoice</button>
       <button class="save-status-btn" onclick="openNotifyModal(currentRef)" style="background:#4fa3ff;border-color:#4fa3ff;color:#fff;" title="Email or SMS this client about payment, booking, or a follow-up">📨 Notify Client</button>
       <button class="save-status-btn" onclick="openEditBooking()" style="background:#4fa3ff;border-color:#4fa3ff;">✏️ Edit Booking</button>
     </div>
@@ -2439,6 +2440,7 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <button class="refresh-btn" style="flex:1;" onclick="document.getElementById('quoteOverlay').style.display='none'">Close</button>
       <button class="refresh-btn" style="flex:1;background:#4fa3ff;color:#fff;border-color:#4fa3ff;" onclick="quoteSave()">💾 Save</button>
       <button class="refresh-btn" style="flex:1;background:var(--gold);color:#1a1209;border-color:var(--gold);" onclick="quoteSaveAndPrint()">🖨 Save &amp; Print</button>
+      <button class="refresh-btn" style="flex:1;background:#2e9e5b;color:#fff;border-color:#2e9e5b;" onclick="quoteSave().then(function(){ openInvoice('quotation', _quoteRef); })" title="Save, then generate an invoice from this quotation">🧾 Invoice</button>
     </div>
     <div id="quoteSaveStatus" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem;"></div>
   </div>
@@ -4379,7 +4381,7 @@ function renderPOSHistory() {
       <div style="text-align:right;">
         <div style="font-weight:700;color:var(--gold);">₱${s.total.toLocaleString()}</div>
         <button onclick="posPrintReceipt('${s.id}')" style="background:var(--card);border:1px solid var(--border2);color:var(--gold);padding:2px 8px;border-radius:5px;font-size:0.64rem;cursor:pointer;margin-top:2px;">🧾 Receipt</button>
-        ${s.type==='Sale' ? `<button onclick="openQuoteEditor('${s.id}')" style="background:var(--card);border:1px solid var(--gold);color:var(--gold);padding:2px 8px;border-radius:5px;font-size:0.64rem;cursor:pointer;margin-top:2px;margin-left:4px;">📝 Quote</button>` : ''}
+        ${s.type==='Sale' ? `<button onclick="openQuoteEditor('${s.id}')" style="background:var(--card);border:1px solid var(--gold);color:var(--gold);padding:2px 8px;border-radius:5px;font-size:0.64rem;cursor:pointer;margin-top:2px;margin-left:4px;">📝 Quote</button><button onclick="openInvoice('pos','${s.id}')" style="background:#2e9e5b;border:1px solid #2e9e5b;color:#fff;padding:2px 8px;border-radius:5px;font-size:0.64rem;cursor:pointer;margin-top:2px;margin-left:4px;">🧾 Invoice</button>` : ''}
       </div>
     </div>`).join('');
 }
@@ -8945,12 +8947,7 @@ async function wfOpenDoc(type) {
       ${(d.manifest||[]).map(m=>`<tr><td>${escapeHtml(m.kit)}</td><td>${m.qty}</td><td>${escapeHtml(m.zone)}</td></tr>`).join('')||'<tr><td colspan="3">No manifest.</td></tr>'}</table>
       <p class="meta">Received complete and in good condition:</p>
       <div class="sig"><div>Driver</div><div>Received by (name & signature)</div></div>`);
-    if (type === 'invoice') return docFrame('Statement of Account', d, `
-      <table><tr><th>Description</th><th>Amount</th></tr>
-      <tr><td>${escapeHtml(bk.pkg)} — catering services, ${bk.pax} pax</td><td>${peso(bk.total)}</td></tr>
-      <tr><td>Less: downpayment received</td><td>(${peso(bk.down)})</td></tr>
-      <tr class="tot"><td>BALANCE DUE</td><td>${peso(bk.balance)}</td></tr></table>
-      <p class="meta">Thank you for celebrating with us. Please settle the balance on or before the event date.</p>`);
+    if (type === 'invoice') { openInvoice('event', _wfEventRef); return; }
   } catch(e) { showToast('Doc error: ' + e.message, 'red'); }
 }
 
@@ -9302,6 +9299,135 @@ async function quoteSaveAndPrint() {
   if (j) quotePrint();
 }
 
+// =============================================================
+//  UNIFIED INVOICE — print a professional invoice for a
+//  quotation, a POS sale, or an event/booking.
+// =============================================================
+async function openInvoice(source, id) {
+  if (!id) { showToast('Nothing to invoice', 'red'); return; }
+  showToast('Generating invoice…', 'gold');
+  try {
+    const d = await apFetch(SCRIPT_URL + '?action=cfInvoiceData&token=' + encodeURIComponent(sessionToken)
+      + '&source=' + encodeURIComponent(source) + '&id=' + encodeURIComponent(id) + '&ts=' + Date.now());
+    if (!d.success) throw new Error(d.error || 'Failed to build invoice');
+    renderInvoice(d);
+  } catch(e) {
+    showToast('Invoice error: ' + (e.meaning || e.message), 'red');
+    if (e.code) apShowErrorAdmin(e);
+  }
+}
+
+function renderInvoice(d) {
+  const peso = n => '₱' + Math.round(Number(n||0)).toLocaleString('en-PH');
+  const esc = s => String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const b = (d.brand && typeof d.brand === 'object') ? d.brand : { name: d.brand || 'Appetina Catering & Food Services' };
+  const brandName = b.name || 'Appetina Catering & Food Services';
+  const GCASH_QR_IMG = new URL('appetina-gcash-qr.jpg', window.location.href).href;
+
+  const rows = (d.lines || []).map(l => {
+    const main = `<tr><td>${esc(l.desc)}</td><td class="ctr">${l.qty||''}</td><td class="ctr">${esc(l.unitLabel||'')}</td>
+      <td class="rgt">${l.unitPrice?peso(l.unitPrice):'—'}</td><td class="rgt">${peso(l.amount)}</td></tr>`;
+    const subs = (l.subItems||[]).filter(s=>String(s||'').trim()).map(s =>
+      `<tr class="subrow"><td colspan="5">— ${esc(s)}</td></tr>`).join('');
+    return main + subs;
+  }).join('');
+
+  const showDiscount = Number(d.discount) > 0;
+  const showBalance = d.balance != null && (Number(d.paid) > 0 || Number(d.balance) !== Number(d.total));
+  const paidBadge = (Number(d.balance) === 0)
+    ? '<div class="paidstamp">PAID</div>' : '';
+
+  const infoRows = [
+    ['Bill To', esc(d.client || '—')],
+    d.contact ? ['Contact', esc(d.contact)] : null,
+    d.email ? ['Email', esc(d.email)] : null,
+    d.eventDate ? ['Event Date', esc(d.eventDate)] : null,
+    d.venue ? ['Venue', esc(d.venue)] : null,
+    d.reference ? ['Reference', esc(d.reference)] : null,
+    d.method ? ['Payment', esc(d.method)] : null
+  ].filter(Boolean).map(r => `<div class="inf"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(d.invoiceNo)} — ${esc(brandName)}</title>
+  <style>
+    @page{ size:A4; margin:16mm; }
+    *{ box-sizing:border-box; }
+    body{ font-family:'Segoe UI',Arial,sans-serif; color:#2c2418; margin:0; font-size:13px; line-height:1.5; }
+    .head{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #C9A84C; padding-bottom:14px; margin-bottom:18px; }
+    .brand h1{ margin:0; font-size:1.5rem; color:#8B4513; }
+    .brand .tag{ color:#8a7050; font-size:0.78rem; margin-top:3px; }
+    .invmeta{ text-align:right; }
+    .invmeta .word{ font-size:1.6rem; font-weight:800; letter-spacing:2px; color:#C9A84C; }
+    .invmeta .no{ font-size:0.95rem; font-weight:700; margin-top:2px; }
+    .invmeta .date{ font-size:0.78rem; color:#8a7050; }
+    .info{ display:grid; grid-template-columns:1fr 1fr; gap:4px 24px; margin-bottom:16px; }
+    .inf{ display:flex; justify-content:space-between; border-bottom:1px dotted #e2d6bf; padding:3px 0; font-size:0.82rem; }
+    .inf span{ color:#8a7050; }
+    table{ width:100%; border-collapse:collapse; margin-bottom:4px; }
+    th{ background:#8B4513; color:#fff; text-align:left; padding:8px 10px; font-size:0.78rem; }
+    td{ padding:7px 10px; border-bottom:1px solid #eee; font-size:0.82rem; }
+    .ctr{ text-align:center; } .rgt{ text-align:right; }
+    .subrow td{ color:#6b5a44; font-size:0.76rem; font-style:italic; background:#fcfaf3; border-top:none; padding:3px 10px 3px 24px; }
+    .totals{ width:280px; margin-left:auto; margin-top:8px; }
+    .totals .tr{ display:flex; justify-content:space-between; padding:5px 10px; font-size:0.85rem; }
+    .totals .grand{ background:#C9A84C; color:#1a1209; font-weight:800; border-radius:5px; font-size:1rem; }
+    .totals .bal{ background:#8B4513; color:#fff; font-weight:800; border-radius:5px; font-size:1rem; }
+    .pay{ margin-top:22px; display:flex; gap:16px; align-items:flex-start; border-top:1px solid #e2d6bf; padding-top:14px; }
+    .pay .qr{ text-align:center; } .pay .qr img{ width:110px; height:110px; }
+    .pay .qr div{ font-size:0.7rem; color:#8a7050; margin-top:3px; }
+    .paidstamp{ border:4px solid #2e9e5b; color:#2e9e5b; font-weight:900; font-size:1.8rem; padding:4px 20px; border-radius:8px; transform:rotate(-12deg); letter-spacing:3px; opacity:0.85; }
+    .foot{ margin-top:24px; text-align:center; font-size:0.72rem; color:#999; border-top:1px solid #eee; padding-top:10px; }
+    @media print{ .noprint{ display:none; } }
+  </style></head><body>
+    <div class="head">
+      <div class="brand">
+        <h1>${esc(brandName)}</h1>
+        <div class="tag">📱 GCash 0906 239 0453 · 🏦 BPI 9359672591 · 📍 Iligan City · 📘 Appetina Catering</div>
+      </div>
+      <div class="invmeta">
+        <div class="word">${esc(d.title || 'INVOICE')}</div>
+        <div class="no">${esc(d.invoiceNo)}</div>
+        <div class="date">Date issued: ${esc(d.issued)}</div>
+      </div>
+    </div>
+
+    <div class="info">${infoRows}</div>
+
+    <table>
+      <thead><tr><th>Description</th><th class="ctr">Qty</th><th class="ctr">Unit</th><th class="rgt">Unit Price</th><th class="rgt">Amount</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <div class="totals">
+      <div class="tr"><span>Subtotal</span><span>${peso(d.subtotal)}</span></div>
+      ${showDiscount ? `<div class="tr"><span>${esc(d.discountLabel||'Discount')}</span><span>-${peso(d.discount)}</span></div>` : ''}
+      <div class="tr grand"><span>TOTAL</span><span>${peso(d.total)}</span></div>
+      ${showBalance ? `<div class="tr"><span>Amount paid</span><span>${peso(d.paid)}</span></div>
+        <div class="tr bal"><span>BALANCE DUE</span><span>${peso(d.balance)}</span></div>` : ''}
+    </div>
+
+    <div class="pay">
+      ${Number(d.balance) === 0 ? paidBadge : `
+        <div class="qr"><img src="${GCASH_QR_IMG}" alt="GCash QR"/><div>GCash · 0906 239 0453</div></div>
+        <div style="font-size:0.8rem;color:#5d4037;">
+          <b>Payment options</b> (under Cyril L. Sitchon):<br>
+          📱 GCash: <b>0906 239 0453</b><br>🏦 BPI/Card: <b>9359672591</b><br>
+          <span style="font-size:0.72rem;color:#8a7050;">Scan the QR, then enter the amount manually. Please send your receipt to confirm.</span>
+        </div>`}
+    </div>
+
+    ${d.note ? `<p style="font-size:0.78rem;color:#8a7050;margin-top:14px;">Note: ${esc(d.note)}</p>` : ''}
+    <div class="foot">Thank you for your business! · ${esc(brandName)} · This is a computer-generated ${esc((d.title||'invoice').toLowerCase())}.</div>
+
+    <div class="noprint" style="text-align:center;margin-top:20px;">
+      <button onclick="window.print()" style="background:#8B4513;color:#fff;border:none;padding:12px 32px;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;">🖨️ Print / Save as PDF</button>
+    </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
 function quotePrint() {
   // Same payment accounts used on the public booking page's payment step.
   // GCash QR is a real image file (appetina-gcash-qr.jpg) loaded on demand when
@@ -9464,5 +9590,162 @@ function quotePrint() {
 }
 
 </script>
+<!-- ADMIN AI ASSISTANT + SUPPORT GUIDE -->
+<style>
+  .adminFab{position:fixed;bottom:1.4rem;right:1.4rem;z-index:940;display:flex;flex-direction:column;gap:0.6rem;align-items:flex-end;}
+  .adminFab button{border:none;cursor:pointer;border-radius:50%;width:56px;height:56px;font-size:1.4rem;box-shadow:0 6px 22px rgba(0,0,0,0.3);color:#fff;transition:transform .15s;}
+  .adminFab button:hover{transform:scale(1.06);}
+  .adminFab .fabChat{background:linear-gradient(135deg,#C9A84C,#8B4513);}
+  .adminFab .fabGuide{background:linear-gradient(135deg,#4fa3ff,#2b6fd6);font-size:1.25rem;}
+  .adminChatWin{position:fixed;bottom:1.4rem;right:1.4rem;width:370px;max-width:calc(100vw - 2rem);height:560px;max-height:calc(100vh - 2rem);background:#1e1a14;border:1px solid #3a3020;border-radius:14px;box-shadow:0 16px 60px rgba(0,0,0,0.55);display:none;flex-direction:column;overflow:hidden;z-index:950;}
+  .adminChatWin.open{display:flex;}
+  .adminChatHead{background:linear-gradient(135deg,#C9A84C,#8B4513);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;}
+  .adminChatHead .t{font-weight:700;font-size:0.95rem;line-height:1.2;}
+  .adminChatHead .s{font-size:0.68rem;opacity:0.9;}
+  .adminChatHead .x{margin-left:auto;background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;width:auto;height:auto;box-shadow:none;}
+  .adminChatBody{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#17130e;}
+  .acMsg{max-width:85%;padding:9px 12px;border-radius:12px;font-size:0.82rem;line-height:1.5;}
+  .acMsg.bot{background:#2a2417;color:#f0e6d2;align-self:flex-start;border-bottom-left-radius:3px;}
+  .acMsg.user{background:linear-gradient(135deg,#C9A84C,#8B4513);color:#fff;align-self:flex-end;border-bottom-right-radius:3px;}
+  .acQuick{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;background:#1e1a14;border-top:1px solid #322a1c;}
+  .acQuick button{background:#2a2417;border:1px solid #4a3f28;color:#e8dcc0;font-size:0.68rem;padding:5px 9px;border-radius:14px;cursor:pointer;width:auto;height:auto;box-shadow:none;}
+  .acQuick button:hover{background:#3a3020;}
+  .acInputRow{display:flex;gap:8px;padding:10px 12px;background:#1e1a14;border-top:1px solid #322a1c;}
+  .acInputRow input{flex:1;background:#17130e;border:1px solid #4a3f28;border-radius:20px;padding:9px 14px;color:#f0e6d2;font-size:0.82rem;outline:none;}
+  .acInputRow button{background:linear-gradient(135deg,#C9A84C,#8B4513);border:none;color:#fff;border-radius:50%;width:38px;height:38px;cursor:pointer;flex-shrink:0;box-shadow:none;font-size:1rem;}
+  .acTyping span{display:inline-block;width:6px;height:6px;background:#c9a84c;border-radius:50%;margin:0 1px;animation:acb 1s infinite;}
+  .acTyping span:nth-child(2){animation-delay:.2s;}.acTyping span:nth-child(3){animation-delay:.4s;}
+  @keyframes acb{0%,60%,100%{opacity:0.3;}30%{opacity:1;}}
+  .guideOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:960;display:none;align-items:center;justify-content:center;padding:1rem;}
+  .guideOverlay.open{display:flex;}
+  .guideModal{background:#fffdf9;border-radius:14px;max-width:680px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 20px 70px rgba(0,0,0,0.5);}
+  .guideHead{background:linear-gradient(135deg,#C9A84C,#8B4513);color:#fff;padding:20px 24px;position:sticky;top:0;display:flex;align-items:center;}
+  .guideHead h2{margin:0;font-size:1.3rem;}
+  .guideHead button{margin-left:auto;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;}
+  .guideBody{padding:20px 24px;color:#3a2f1f;}
+  .guideBody details{border:1px solid #e8dcc0;border-radius:8px;margin-bottom:10px;overflow:hidden;}
+  .guideBody summary{padding:12px 16px;font-weight:700;cursor:pointer;background:#faf5ea;font-size:0.92rem;list-style:none;}
+  .guideBody summary::-webkit-details-marker{display:none;}
+  .guideBody summary:before{content:'\25B8 ';color:#C9A84C;}
+  .guideBody details[open] summary:before{content:'\25BE ';}
+  .guideBody .gc{padding:12px 16px 16px;font-size:0.86rem;line-height:1.7;color:#555;}
+  .guideBody .gc strong{color:#5d4037;}
+  .guideBody .gc code{background:#f0e6d2;padding:1px 5px;border-radius:4px;font-size:0.82rem;}
+</style>
+
+<div class="adminFab">
+  <button class="fabGuide" onclick="openGuide()" title="Support Guide">&#128216;</button>
+  <button class="fabChat" onclick="toggleAdminChat()" title="AI Assistant">&#128172;</button>
+</div>
+
+<div class="adminChatWin" id="adminChatWin">
+  <div class="adminChatHead">
+    <div style="font-size:1.5rem;">&#129302;</div>
+    <div><div class="t">CaterFlow Assistant</div><div class="s">&#10022; AI-powered &middot; Admin help</div></div>
+    <button class="x" onclick="toggleAdminChat()">&#10005;</button>
+  </div>
+  <div class="adminChatBody" id="adminChatBody"></div>
+  <div class="acQuick">
+    <button onclick="adminQuick('How do I make a quotation?')">&#128221; Quotation</button>
+    <button onclick="adminQuick('How do I notify a client?')">&#128232; Notify</button>
+    <button onclick="adminQuick('How do I run re-engagement marketing?')">&#128227; Marketing</button>
+    <button onclick="adminQuick('How do I redeploy?')">&#128640; Deploy</button>
+    <button onclick="adminQuick('I got a DOCTYPE error')">&#129466; Fix error</button>
+  </div>
+  <div class="acInputRow">
+    <input id="adminChatInput" placeholder="Ask about any admin feature&#8230;" onkeydown="if(event.key==='Enter')sendAdminChat()"/>
+    <button onclick="sendAdminChat()" id="adminChatSendBtn">&#10148;</button>
+  </div>
+</div>
+
+<div class="guideOverlay" id="guideOverlay">
+  <div class="guideModal">
+    <div class="guideHead"><h2>&#128216; CaterFlow Admin Support Guide</h2><button onclick="closeGuide()">&#10005;</button></div>
+    <div class="guideBody">
+      <p style="color:#777;font-size:0.85rem;margin-top:0;">Step-by-step help for every part of the admin dashboard. Tap any topic to expand. Need something specific? Use the &#128172; AI Assistant.</p>
+
+      <details open><summary>&#128221; Creating &amp; printing quotations</summary><div class="gc">
+        Open a booking and tap <strong>&#128221; Quotation</strong> (also on POS orders and the Workflows Marketing stage). The package name, guest count, per-pax price, and all inclusions <strong>auto-fill</strong>. Add extra priced lines with <strong>+ Add item</strong>; each has a <strong>package picker</strong> and a <strong>"+ from menu"</strong> dropdown for inclusions. Use <strong>&#10515; Auto-fill</strong> to re-pull the package + inclusions if a draft was saved earlier. Tap <strong>&#128424;&#65039; Save &amp; Print</strong> for the A4 layout with GCash/BPI QR codes, terms, and signature block.
+      </div></details>
+
+      <details><summary>&#128232; Notifying clients (email &amp; SMS)</summary><div class="gc">
+        Open a booking &#8594; <strong>&#128232; Notify Client</strong>. Choose a type: <strong>&#128176; Payment reminder</strong>, <strong>&#127881; Booking confirmation</strong>, <strong>&#128075; Follow-up</strong>, <strong>&#128591; Thank-you</strong> (includes a feedback link), or <strong>&#127873; Sales follow-up</strong>. Pick a channel &#8212; Email, SMS, or both. Email is free. SMS uses Semaphore if you set <code>SEMAPHORE_API_KEY</code>; otherwise you get tap-to-send SMS/WhatsApp links at no cost.
+      </div></details>
+
+      <details><summary>&#128227; Sales &amp; marketing &#8212; win back lapsed clients</summary><div class="gc">
+        <strong>Configuration &#8594; Sales &amp; Marketing</strong>. Set "lapsed after" days (default 90), tap <strong>&#128269; Scan lapsed clients</strong> to preview, then <strong>&#128231; Email all</strong> a comeback offer. Clients contacted within 30 days are skipped automatically. Run <code>cfInstallReengagementTrigger</code> once in Apps Script for a weekly auto-campaign, and customize the copy via the <code>ReengagementMessage</code>/<code>ReengagementSubject</code> settings.
+      </div></details>
+
+      <details><summary>&#128176; Event costing &amp; profit</summary><div class="gc">
+        Open a booking &#8594; <strong>&#128176; Costing</strong>. Totals <strong>Food</strong> (recipes &#215; pax) + <strong>Setup</strong> (manifest kits &#215; cost/use) + <strong>Manpower</strong> (wave hours &#215; staff rate), showing revenue, profit, margin, and cost-per-pax. Missing recipes or uncosted kits are flagged honestly so you know what to fill in.
+      </div></details>
+
+      <details><summary>&#9989; Workflows &#8212; the 9-stage event lifecycle</summary><div class="gc">
+        The <strong>Workflows</strong> tab tracks each event through Marketing &#8594; Booking &#8594; Planning &#8594; Purchasing &#8594; Kitchen &#8594; Setup &#8594; Quality &#8594; Delivery &#8594; Breakdown. Each stage has a checklist; &#128196; buttons generate printable documents (quotation, agreement, event order, market list, kitchen sheet, loading map, QC form, delivery note, invoice).
+      </div></details>
+
+      <details><summary>&#128101; Staff, attendance &amp; user roles</summary><div class="gc">
+        Manage dashboard access under <strong>Users</strong> &#8212; roles are <strong>viewer &#8594; staff &#8594; manager &#8594; owner</strong> (owners see everything, including System Settings). Add staff and hourly rates in <strong>Staff</strong> (feeds manpower costing). Attendance uses device biometrics + face recognition through the separate attendance app.
+      </div></details>
+
+      <details><summary>&#129474; Inventory, recipes &amp; market lists</summary><div class="gc">
+        Each dish maps to scaled ingredients in the <strong>Recipe/Kitchen</strong> engine. Syncing an event's requirements compares needed ingredients against stock to build a market list, and inventory auto-syncs from recipes. Tip: dish-name badges like "Best Seller" are stripped automatically before ingredient matching.
+      </div></details>
+
+      <details><summary>&#128640; Deploying changes (important!)</summary><div class="gc">
+        Backend changes go live only when you create a <strong>new version</strong>: <strong>Deploy &#8594; Manage deployments &#8594; Edit (&#9999;&#65039;) &#8594; Version: New version &#8594; Deploy</strong>. &#9888;&#65039; Saving the code alone does <em>not</em> update the live app. For the frontend, upload the HTML file and hard-refresh (Ctrl/Cmd+Shift+R). Make sure the deployment's access is set to <strong>Anyone</strong>.
+      </div></details>
+
+      <details><summary>&#129466; Fixing the "&lt;!DOCTYPE / not valid JSON" error</summary><div class="gc">
+        This means the server returned a web page instead of data &#8212; almost always a deployment issue. Fix by <strong>redeploying as a new version</strong> and confirming access is <strong>Anyone</strong>. The app now auto-retries and logs details &#8212; open <strong>Configuration &#8594; System Diagnostics &#8594; View Diagnostics Log</strong> to see exactly what failed and when.
+      </div></details>
+
+      <details><summary>&#128273; Client password resets</summary><div class="gc">
+        Clients reset their own passwords &#8212; on the booking page sign-in they tap <strong>"Forgot your password?"</strong>, receive a secure email link (valid 1 hour), and set a new password. No admin action needed; if a client asks, just point them to that link.
+      </div></details>
+
+      <details><summary>&#128190; Backup, restore &amp; bulk import</summary><div class="gc">
+        Use <strong>Backup/Restore</strong> for local or Google Drive backups &#8212; always back up before a large import or restore. Bulk data imports via Excel/CSV are parsed in the browser and upserted in chunks.
+      </div></details>
+
+      <p style="font-size:0.78rem;color:#999;margin-top:16px;">For anything not covered here, ask the &#128172; AI Assistant or send feedback with the thumbs-down in Claude.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  var _adminChatOpen=false,_adminChatInit=false;
+  function toggleAdminChat(){
+    _adminChatOpen=!_adminChatOpen;
+    document.getElementById('adminChatWin').classList.toggle('open',_adminChatOpen);
+    if(_adminChatOpen&&!_adminChatInit){ _adminChatInit=true;
+      acBot("Hi! &#128075; I'm your CaterFlow Admin Assistant. Ask me how to do anything in the dashboard &#8212; quotations, notifications, marketing, costing, deployment, troubleshooting, and more. Tap a shortcut below or type your question.");
+    }
+    if(_adminChatOpen) setTimeout(function(){var i=document.getElementById('adminChatInput');i&&i.focus();},120);
+  }
+  function acBot(html){var d=document.createElement('div');d.className='acMsg bot';d.innerHTML=html;var b=document.getElementById('adminChatBody');b.appendChild(d);b.scrollTop=9e9;}
+  function acUser(t){var d=document.createElement('div');d.className='acMsg user';d.textContent=t;var b=document.getElementById('adminChatBody');b.appendChild(d);b.scrollTop=9e9;}
+  function acTyping(){var d=document.createElement('div');d.className='acMsg bot acTyping';d.id='acTyping';d.innerHTML='<span></span><span></span><span></span>';var b=document.getElementById('adminChatBody');b.appendChild(d);b.scrollTop=9e9;}
+  function adminQuick(t){document.getElementById('adminChatInput').value=t;sendAdminChat();}
+  async function sendAdminChat(){
+    var inp=document.getElementById('adminChatInput');var txt=inp.value.trim();if(!txt)return;
+    inp.value='';document.getElementById('adminChatSendBtn').disabled=true;
+    acUser(txt);acTyping();
+    try{
+      var j=await apFetch(SCRIPT_URL+'?action=adminChat&message='+encodeURIComponent(txt)+'&ts='+Date.now());
+      var t=document.getElementById('acTyping');t&&t.remove();
+      acBot((j&&j.reply)||"Sorry, please try again.");
+    }catch(e){
+      var t2=document.getElementById('acTyping');t2&&t2.remove();
+      acBot("I couldn't reach the server just now. &#128533; Check <strong>Configuration &#8594; System Diagnostics</strong> for details, or try again in a moment.");
+    }
+    document.getElementById('adminChatSendBtn').disabled=false;
+    document.getElementById('adminChatInput').focus();
+  }
+  function openGuide(){document.getElementById('guideOverlay').classList.add('open');}
+  function closeGuide(){document.getElementById('guideOverlay').classList.remove('open');}
+  document.getElementById('guideOverlay').addEventListener('click',function(e){if(e.target===this)closeGuide();});
+</script>
+
 </body>
 </html>
