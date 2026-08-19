@@ -1594,6 +1594,14 @@ body.sb-collapsed .nv-group{margin-bottom:0.5rem;padding-bottom:0.5rem;border-bo
       <div id="sysSettingsBody"></div>
       <button class="refresh-btn" style="background:#ba68c8;color:#fff;border-color:#ba68c8;margin-top:0.8rem;" onclick="saveSysSettings()">💾 Save System Settings</button>
 
+      <div class="exec-section-title" style="margin-top:1.6rem;">📅 Booking Capacity — Max Confirmed Bookings per Day <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· show clients a "fully booked" message when a day is full</span></div>
+      <div style="display:flex;gap:0.6rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:0.4rem;">
+        <div><label class="entry-label">Max bookings per day</label><input class="entry-input" id="maxBookingsPerDay" type="number" min="0" value="0" placeholder="0" style="width:140px;"/></div>
+        <button class="refresh-btn" onclick="saveMaxBookings()" style="background:var(--gold);color:#1a1209;border-color:var(--gold);">💾 Save</button>
+      </div>
+      <div id="maxBookingsMsg" style="font-size:0.72rem;color:var(--muted);margin-top:0.2rem;"></div>
+      <div style="font-size:0.68rem;color:var(--muted);margin-top:0.4rem;">Set to <strong>0</strong> for unlimited (no limit). When a day reaches this many <strong>Confirmed</strong> bookings, new clients picking that date see a "Fully Booked" popup and can't submit. Pending and cancelled bookings don't count.</div>
+
       <div class="exec-section-title" style="margin-top:1.6rem;">📣 Sales &amp; Marketing — Win Back Lapsed Clients <span style="font-size:0.66rem;color:var(--muted);font-weight:400;">· email clients who haven't booked recently</span></div>
       <div style="display:flex;gap:0.6rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:0.6rem;">
         <div><label class="entry-label">Lapsed after (days)</label><input class="entry-input" id="reengageDays" type="number" min="30" value="90" style="width:120px;"/></div>
@@ -8647,6 +8655,9 @@ async function loadSysSettings() {
     const j = await res.json();
     if (!j.success) throw new Error(j.error||'Failed');
     _sysSettings = j.settings;
+    // Mirror the max-bookings value into the dedicated Booking Capacity field.
+    var mbp = (j.settings.find(function(s){ return s.key==='MaxBookingsPerDay'; })||{}).value || '0';
+    var mbEl = document.getElementById('maxBookingsPerDay'); if (mbEl) mbEl.value = mbp;
     document.getElementById('sysSettingsBody').innerHTML = j.settings.map(s => `
       <div style="margin-bottom:0.6rem;">
         <label class="entry-label">${escapeHtml(s.label)} ${s.type==='secret'?'<span style="color:var(--muted);font-size:0.6rem;">(secret)</span>':''}</label>
@@ -8665,6 +8676,27 @@ async function saveSysSettings() {
     showToast('✓ System settings saved', 'gold');
     loadSysSettings();
   } catch(e) { showToast('Error: ' + e.message, 'red'); }
+}
+
+// Dedicated, always-clear save for the daily booking capacity.
+async function saveMaxBookings() {
+  const el = document.getElementById('maxBookingsPerDay');
+  const msg = document.getElementById('maxBookingsMsg');
+  const val = Math.max(0, parseInt(el.value) || 0);
+  el.value = val;
+  if (msg) { msg.style.color = 'var(--muted)'; msg.textContent = 'Saving…'; }
+  try {
+    const p = new URLSearchParams({ action:'sysSettingsSave', token:sessionToken,
+      settings: JSON.stringify({ MaxBookingsPerDay: String(val) }), ts:Date.now() });
+    const j = await apFetch(SCRIPT_URL + '?' + p.toString());
+    if (!j.success) throw new Error(j.error || 'Failed');
+    if (msg) { msg.style.color = '#66bb6a';
+      msg.textContent = val === 0 ? '✓ Saved — no daily limit (unlimited).' : '✓ Saved — clients can book at most ' + val + ' event' + (val===1?'':'s') + ' per day.'; }
+    showToast('✓ Booking capacity saved', 'gold');
+  } catch(e) {
+    if (msg) { msg.style.color = '#ff6b6b'; msg.textContent = (e.meaning || e.message); }
+    showToast('Error: ' + (e.meaning || e.message), 'red');
+  }
 }
 
 // ── Backup / Restore ──
